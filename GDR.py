@@ -3,6 +3,7 @@ from sklearn.decomposition import PCA
 from typing import Optional
 import math
 import utils
+from sklearn.neighbors import LocalOutlierFactor as LOF
 
 DEBUG_MODE = True
 VERBOSITY = 2
@@ -135,13 +136,22 @@ class GravitionalDimensionalityReduction():
         theta = 0
         return (r, theta)
 
-    def _sort_by_density(self, X, label=None):
+    def _sort_by_density(self, X):
         """
         Sort the samples based on density of Local Outlier Factor (LOF).
+
+        Args:
+            X (np.ndarray): The column-wise dataset, with columns as samples and rows as features
 
         Note:
             https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.LocalOutlierFactor.html#sklearn.neighbors.LocalOutlierFactor
             https://en.wikipedia.org/wiki/Local_outlier_factor
         """
-        # TODO: to be implemented
+        lof = LOF(n_neighbors=10)
+        lof.fit(X.T)
+        density_scores = lof.negative_outlier_factor_
+        # density_scores = lof.score_samples(X.T)
+        # sort from largest to smallest score:
+        sorted_indices = np.argsort(density_scores)[::-1]
+        X = X[:, sorted_indices]
         return X
