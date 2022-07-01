@@ -92,44 +92,74 @@ class GravitionalDimensionalityReduction():
                 if i == j: continue
                 x_i = X[:, i]
                 r_ij, theta_ij = self._caculate_r_and_theta(origin=x_i, x=x_j)
-                # import pdb; pdb.set_trace()
-                M_ij = self._alpha * np.linalg.norm(x_i - x_j)
+                M_ij =  self._alpha / np.linalg.norm(x_i - x_j)
                 g_ij = self._Schwarzschild_metric(r=r_ij, theta=theta_ij, M=M_ij, G=1, c=1, ignore_time_component=True)
-                delta_ij = self._solve_eigenvalue_problem(matrix=g_ij, sort_descending=True, n_components=None)
+                eig_vectors, eig_values = self._solve_eigenvalue_problem(matrix=g_ij, sort=True, sort_descending=True, n_components=None)
+                delta_ij = eig_vectors[:, 0] * eig_values[0]
                 x_j = self._move_in_spherical_coordinate_system(x=x_j, origin=x_i, delta=delta_ij)
+                import pdb; pdb.set_trace()
             X[:, -j-1] = x_j
         return X
 
     def _move_in_spherical_coordinate_system(self, x, origin, delta):
-        # TODO: to be implemented
+        # shift based on origin:
+        x = x - origin
+        # Cartesian to spherical conversion:
+        x_spherical = self._convert_Cartesian_to_spherical_coordinates(x=x)
+        # movement in spherical coordinate system:
+        x_spherical = x_spherical + delta
+        # spherical to Cartesian conversion:
+        x = self._convert_spherical_to_Cartesian_coordinates(x=x_spherical)
+        # shift back based on origin:
+        x = x + origin
+
         return x
 
-    def _Schwarzschild_metric(self, r, theta, M, G=1, c=1, ignore_time_component=False):
-        temp = 1 - ((2 * G * M) / (r * (c**2)))
-        if not ignore_time_component:
-            t_component = - temp
-        r_component = 1 / temp
-        theta_component = r**2
-        phi_component = (r**2) * (math.sin(theta)**2)
-        if not ignore_time_component:
-            metric = np.diag([t_component, r_component, theta_component, phi_component])
-        else:
-            metric = np.diag([r_component, theta_component, phi_component])
-        return metric
+    def _convert_Cartesian_to_spherical_coordinates(self, x):
+        """
+        Convert the point coordinates in Cartesian coordinate system to the point coordinates in the pherical coordinate system.
 
-    def _solve_eigenvalue_problem(self, matrix, sort_descending=True, n_components=None):
-        eig_val, eig_vec = np.linalg.eigh(matrix)
-        if sort_descending:
-            idx = eig_val.argsort()[::-1]  # sort eigenvalues in descending order (largest eigenvalue first)
-        else:
-            idx = eig_val.argsort()  # sort eigenvalues in ascending order (smallest eigenvalue first)
-        eig_val = eig_val[idx]
-        eig_vec = eig_vec[:, idx]
-        if n_components is not None:
-            eig_vec = eig_vec[:, 0:n_components]
-        else:
-            eig_vec = eig_vec
-        return eig_vec
+        Notes:
+            https://en.wikipedia.org/wiki/Spherical_coordinate_system
+            Cartesian to spherical conversion (but in this link, the notations of theta and phi are replaced.): 
+                https://keisan.casio.com/exec/system/1359533867
+        """
+        # Cartesian to spherical conversion (calculate r):
+        r = np.linalg.norm(x)
+        # Cartesian to spherical conversion (calculate theta):
+        r_in_x_y_plane = (x[0]**2 + x[1]**2) ** 0.5
+        theta = np.arctan(r_in_x_y_plane / np.abs(x[2]))
+        if x[2] < 0:
+            theta = np.pi - theta
+        # Cartesian to spherical conversion (calculate phi):
+        phi = np.arctan(np.abs(x[1]) / np.abs(x[0]))
+        if x[0] >= 0 and x[1] >= 0:
+            pass
+        elif x[0] < 0 and x[1] >= 0:
+            phi = np.pi - phi
+        elif x[0] < 0 and x[1] < 0:
+            phi = np.pi + phi
+        elif x[0] >= 0 and x[1] < 0:
+            phi = (2*np.pi) - phi
+        return np.asarray([r, theta, phi])
+
+    def _convert_spherical_to_Cartesian_coordinates(self, x):
+        """
+        Convert the point coordinates in spherical coordinate system to the point coordinates in Cartesian coordinate system.
+
+        Notes:
+            https://en.wikipedia.org/wiki/Spherical_coordinate_system
+            Cartesian to spherical conversion (but in this link, the notations of theta and phi are replaced.): 
+                https://keisan.casio.com/exec/system/1359534351
+        """
+        r, theta, phi = x
+        # spherical to Cartesian conversion (calculate x):
+        x = r * np.sin(theta) * np.cos(phi)
+        # spherical to Cartesian conversion (calculate y):
+        y = r * np.sin(theta) * np.sin(phi)
+        # spherical to Cartesian conversion (calculate z):
+        z = r * np.cos(theta)
+        return np.asarray([x, y, z])
 
     def _caculate_r_and_theta(self, origin, x):
         """
@@ -147,6 +177,34 @@ class GravitionalDimensionalityReduction():
         if x[2] < 0:
             theta = np.pi - theta
         return (r, theta)
+
+    def _Schwarzschild_metric(self, r, theta, M, G=1, c=1, ignore_time_component=False):
+        temp = 1 - ((2 * G * M) / (r * (c**2)))
+        if not ignore_time_component:
+            t_component = - temp
+        r_component = 1 / temp
+        theta_component = r**2
+        phi_component = (r**2) * (math.sin(theta)**2)
+        if not ignore_time_component:
+            metric = np.diag([t_component, r_component, theta_component, phi_component])
+        else:
+            metric = np.diag([r_component, theta_component, phi_component])
+        return metric
+
+    def _solve_eigenvalue_problem(self, matrix, sort=True, sort_descending=True, n_components=None):
+        eig_val, eig_vec = np.linalg.eigh(matrix)
+        if sort:
+            if sort_descending:
+                idx = eig_val.argsort()[::-1]  # sort eigenvalues in descending order (largest eigenvalue first)
+            else:
+                idx = eig_val.argsort()  # sort eigenvalues in ascending order (smallest eigenvalue first)
+            eig_val = eig_val[idx]
+            eig_vec = eig_vec[:, idx]
+        if n_components is not None:
+            eig_vec = eig_vec[:, 0:n_components]
+        else:
+            eig_vec = eig_vec
+        return eig_vec, eig_val
 
     def _sort_by_density(self, X):
         """
