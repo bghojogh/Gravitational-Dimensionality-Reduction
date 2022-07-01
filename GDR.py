@@ -2,21 +2,24 @@ import numpy as np
 from sklearn.decomposition import PCA
 from typing import Optional
 import math
+import utils
 
 DEBUG_MODE = True
-VERBOSITY = 1
+VERBOSITY = 2
 
 class GravitionalDimensionalityReduction():
-    def __init__(self, max_itrations=100, alpha=1, final_DR_method=None) -> None:
+    def __init__(self, max_itrations=100, alpha=1, final_DR_method=None, supervised_mode=False) -> None:
         self._max_itrations = max_itrations
         self._alpha = alpha
         if final_DR_method is None:
             self._final_DR_method = PCA()
         else:
             self._final_DR_method = final_DR_method
+        self._supervised_mode = supervised_mode
         self._n_samples = None
         self._dimensionality = None
         self._n_classes = None
+        self._class_names = None
 
     def fit_transform(self, D: np.ndarray, labels: Optional[np.array] = None):
         """
@@ -26,6 +29,9 @@ class GravitionalDimensionalityReduction():
             D (np.ndarray): The row-wise dataset, with rows as samples and columns as features
             labels (np.array): The labels of samples, if the samples are labeled. 
         """
+        if self._supervised_mode:
+            assert(labels is not None)
+
         # make D column-wise:
         D = D.T
 
@@ -33,13 +39,20 @@ class GravitionalDimensionalityReduction():
         self._n_samples = D.shape[1]
         self._dimensionality = D.shape[0]
         self._n_classes = len(np.unique(labels))
+        self._class_names = [str(i) for i in range(self._n_classes)]
+        if DEBUG_MODE and VERBOSITY >= 2: 
+            plt = utils.plot_embedding_of_points(embedding=D.T, labels=labels, class_names=self._class_names, n_samples_plot=None)
+            plt.show()
 
         # apply PCA to go to PCA subspace (space manifold in physics):
         pca = PCA(n_components=3)
         X = (pca.fit_transform(D.T)).T
+        if DEBUG_MODE and VERBOSITY >= 2: 
+            plt =utils.plot_embedding_of_points(embedding=X.T, labels=labels, class_names=self._class_names, n_samples_plot=None)
+            plt.show()
 
         # sort based on density:
-        if labels is None:
+        if not self._supervised_mode:
             X = self._sort_by_density(X=X)
         else:
             X_classes = []
@@ -51,13 +64,13 @@ class GravitionalDimensionalityReduction():
         # iterations of algorithm:
         for itr in range(self._max_itrations):
             if DEBUG_MODE: print(f'===== iteration: {itr}')
-            if labels is None:
+            if not self._supervised_mode:
                 X = self._main_algorithm(X=X)
             else:
                 for label in range(self._n_classes):
                     X_classes = self._main_algorithm(X=X_classes[label])
                 
-        if labels is not None:
+        if self._supervised_mode:
             # TODO: make X from X_classes
             pass
 
