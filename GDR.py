@@ -6,7 +6,8 @@ import utils
 from sklearn.neighbors import LocalOutlierFactor as LOF
 
 DEBUG_MODE = True
-VERBOSITY = 1
+VERBOSITY = 2
+SHOW_VISUALIZATION = False
 
 class GravitionalDimensionalityReduction():
     def __init__(self, max_itrations=100, alpha=1, final_DR_method=None, supervised_mode=False) -> None:
@@ -41,14 +42,14 @@ class GravitionalDimensionalityReduction():
         self._dimensionality = D.shape[0]
         self._n_classes = len(np.unique(labels))
         self._class_names = [str(i) for i in range(self._n_classes)]
-        if DEBUG_MODE and VERBOSITY >= 2: 
+        if DEBUG_MODE and SHOW_VISUALIZATION: 
             plt = utils.plot_embedding_of_points(embedding=D.T, labels=labels, class_names=self._class_names, n_samples_plot=None)
             plt.show()
 
         # apply PCA to go to PCA subspace (space manifold in physics):
         pca = PCA(n_components=3)
         X = (pca.fit_transform(D.T)).T
-        if DEBUG_MODE and VERBOSITY >= 2: 
+        if DEBUG_MODE and SHOW_VISUALIZATION: 
             plt =utils.plot_embedding_of_points(embedding=X.T, labels=labels, class_names=self._class_names, n_samples_plot=None)
             plt.show()
 
@@ -70,6 +71,7 @@ class GravitionalDimensionalityReduction():
             else:
                 for label in range(self._n_classes):
                     X_classes = self._main_algorithm(X=X_classes[label])
+            import pdb; pdb.set_trace()
                 
         if self._supervised_mode:
             # TODO: make X from X_classes
@@ -85,23 +87,25 @@ class GravitionalDimensionalityReduction():
                     
     def _main_algorithm(self, X):
         n_samples = X.shape[1]
-        for j in range(n_samples):  # affected by the gravitation of particles
+        for j in range(1, n_samples+1):  # affected by the gravitation of particles
             if DEBUG_MODE and VERBOSITY >= 2: print(f'Processing instance {j} / {n_samples}')
-            x_j = X[:, -j-1]
+            x_j = X[:, -j]
             for i in range(n_samples):  # the particle having gravity
-                if i == j: continue
                 x_i = X[:, i]
+                if i == (n_samples-j): continue         
+                if np.all(x_j == x_i): continue
                 r_ij, theta_ij = self._caculate_r_and_theta(origin=x_i, x=x_j)
                 M_ij =  self._alpha / np.linalg.norm(x_i - x_j)
                 g_ij = self._Schwarzschild_metric(r=r_ij, theta=theta_ij, M=M_ij, G=1, c=1, ignore_time_component=True)
                 eig_vectors, eig_values = self._solve_eigenvalue_problem(matrix=g_ij, sort=True, sort_descending=True, n_components=None)
                 delta_ij = eig_vectors[:, 0] * eig_values[0]
+                # delta_ij = eig_vectors[:, 0]
                 x_j = self._move_in_spherical_coordinate_system(x=x_j, origin=x_i, delta=delta_ij)
-                import pdb; pdb.set_trace()
-            X[:, -j-1] = x_j
+            X[:, -j] = x_j
         return X
 
     def _move_in_spherical_coordinate_system(self, x, origin, delta):
+        assert (not np.all(x == origin))
         # shift based on origin:
         x = x - origin
         # Cartesian to spherical conversion:
@@ -112,7 +116,6 @@ class GravitionalDimensionalityReduction():
         x = self._convert_spherical_to_Cartesian_coordinates(x=x_spherical)
         # shift back based on origin:
         x = x + origin
-
         return x
 
     def _convert_Cartesian_to_spherical_coordinates(self, x):
@@ -141,6 +144,7 @@ class GravitionalDimensionalityReduction():
             phi = np.pi + phi
         elif x[0] >= 0 and x[1] < 0:
             phi = (2*np.pi) - phi
+        assert (not np.isnan(np.asarray([r, theta, phi])).any())
         return np.asarray([r, theta, phi])
 
     def _convert_spherical_to_Cartesian_coordinates(self, x):
@@ -159,6 +163,7 @@ class GravitionalDimensionalityReduction():
         y = r * np.sin(theta) * np.sin(phi)
         # spherical to Cartesian conversion (calculate z):
         z = r * np.cos(theta)
+        assert (not np.isnan(np.asarray([x, y, z])).any())
         return np.asarray([x, y, z])
 
     def _caculate_r_and_theta(self, origin, x):
