@@ -6,7 +6,7 @@ import utils
 from sklearn.neighbors import LocalOutlierFactor as LOF
 
 DEBUG_MODE = True
-VERBOSITY = 2
+VERBOSITY = 1
 
 class GravitionalDimensionalityReduction():
     def __init__(self, max_itrations=100, alpha=1, final_DR_method=None, supervised_mode=False) -> None:
@@ -92,6 +92,7 @@ class GravitionalDimensionalityReduction():
                 if i == j: continue
                 x_i = X[:, i]
                 r_ij, theta_ij = self._caculate_r_and_theta(origin=x_i, x=x_j)
+                # import pdb; pdb.set_trace()
                 M_ij = self._alpha * np.linalg.norm(x_i - x_j)
                 g_ij = self._Schwarzschild_metric(r=r_ij, theta=theta_ij, M=M_ij, G=1, c=1, ignore_time_component=True)
                 delta_ij = self._solve_eigenvalue_problem(matrix=g_ij, sort_descending=True, n_components=None)
@@ -131,9 +132,20 @@ class GravitionalDimensionalityReduction():
         return eig_vec
 
     def _caculate_r_and_theta(self, origin, x):
-        # TODO: to be implemented
-        r = 0
-        theta = 0
+        """
+        Calculate r and theta in the spherical coordinate system with a specified origin.
+
+        Notes:
+            https://en.wikipedia.org/wiki/Spherical_coordinate_system
+        """
+        x = x - origin
+        # calculate r:
+        r = np.linalg.norm(x)
+        # calculate theta:
+        r_in_x_y_plane = (x[0]**2 + x[1]**2) ** 0.5
+        theta = np.arctan(r_in_x_y_plane / np.abs(x[2]))
+        if x[2] < 0:
+            theta = np.pi - theta
         return (r, theta)
 
     def _sort_by_density(self, X):
