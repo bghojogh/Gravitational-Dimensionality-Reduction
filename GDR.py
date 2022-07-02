@@ -353,4 +353,16 @@ class GravitionalDimensionalityReduction():
         plt.show()
 
     def test_Relativity_movement(self):
-        pass
+        x_i = np.array([1, 1, 1])
+        x_j = np.array([2, 3, 4])
+        r_ij = np.linalg.norm(x_i - x_j)
+        delta_ij_value = 1/r_ij
+        delta_ij_direction = x_i - x_j
+        delta_ij = delta_ij_value * delta_ij_direction
+        x_k = x_j + delta_ij
+
+        labels = [0,1,2]
+        self._n_classes = len(np.unique(labels))
+        self._class_names = [str(i) for i in range(self._n_classes)]
+        plt = utils.plot_3D(X=np.asarray([x_i, x_j, x_k]), labels=labels, class_names=self._class_names)
+        plt.show()

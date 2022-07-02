@@ -16,7 +16,7 @@ DO_SORT_BY_DENSITY = True
 METHOD = 'Newtonian'  #--> 'Newtonian', 'Relativity'
 
 # experiment type:
-EXPERIMENT = 'main_algorithm' #--> 'main_algorithm', 'test_Newtonian_movement', 'test_Relativity_movement'
+EXPERIMENT = 'test_Relativity_movement' #--> 'main_algorithm', 'test_Newtonian_movement', 'test_Relativity_movement'
 
 def main():
     # load dataset:
