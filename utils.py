@@ -4,6 +4,42 @@ import umap
 from sklearn.manifold import TSNE
 from typing import Optional, List
 
+def plot_3D(X, labels, class_names):
+    figure_size = (7, 5)  #--> example: (14, 10)
+    dot_sizes = 50  #--> example: 10
+
+    # _, ax = plt.subplots(1, figsize=figure_size, projection='3d')
+    fig = plt.figure(figsize=(12, 12))
+    ax = fig.add_subplot(projection='3d')
+    # ax.scatter(X[0,:], X[1,:])
+    n_classes = len(class_names)
+    ax.scatter(X[:, 0], X[:, 1], X[:, 2], s=dot_sizes, c=labels, cmap='Spectral', alpha=1.0)
+    # ax.scatter(X[:, 0], X[:, 1], s=dot_sizes, c=labels, cmap='Spectral', alpha=1.0)
+    # plt.setp(ax, xticks=[], yticks=[])
+    # cbar = ax.colorbar(boundaries=np.arange(n_classes+1)-0.5)
+    # cbar = plt.colorbar(boundaries=np.arange(n_classes+1)-0.7)
+    # cbar.set_ticks(np.arange(n_classes))
+    # cbar.set_ticklabels(class_names)
+    return plt
+
+def plot_3D_classwise(X_classes):
+    figure_size = (7, 5)  #--> example: (14, 10)
+    dot_sizes = 50  #--> example: 10
+
+    # _, ax = plt.subplots(1, figsize=figure_size, projection='3d')
+    fig = plt.figure(figsize=(12, 12))
+    ax = fig.add_subplot(projection='3d')
+    n_classes = len(X_classes)
+    class_names = [i for i in range(n_classes)]
+    for class_index in range(n_classes):
+        X_class = X_classes[class_index].T
+        ax.scatter(X_class[:, 0], X_class[:, 1], X_class[:, 2], s=dot_sizes, c=[class_index for i in range(X_class.shape[0])], cmap='Spectral', alpha=1.0)
+    # plt.setp(ax, xticks=[], yticks=[])
+    # cbar = plt.colorbar(boundaries=np.arange(n_classes+1)-0.5)
+    # cbar = plt.colorbar(boundaries=np.arange(n_classes+1)-0.7)
+    # cbar.set_ticks(np.arange(n_classes))
+    # cbar.set_ticklabels(class_names)
+    return plt
 
 def plot_embedding_of_points(embedding: np.ndarray, labels: Optional[np.array], class_names: Optional[List[str]], 
                             n_samples_plot: Optional[int] = None, method: Optional[str] = 'tsne'):

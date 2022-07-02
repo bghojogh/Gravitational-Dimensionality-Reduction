@@ -4,13 +4,14 @@ from typing import Optional
 import math
 import utils
 from sklearn.neighbors import LocalOutlierFactor as LOF
+import matplotlib.pyplot as plt
 
 DEBUG_MODE = True
 VERBOSITY = 2
-SHOW_VISUALIZATION = False
+SHOW_VISUALIZATION = True
 
 class GravitionalDimensionalityReduction():
-    def __init__(self, max_itrations=100, alpha=1, final_DR_method=None, supervised_mode=False) -> None:
+    def __init__(self, max_itrations=100, alpha=1, final_DR_method=None, supervised_mode=False, do_sort_by_density=True) -> None:
         self._max_itrations = max_itrations
         self._alpha = alpha
         if final_DR_method is None:
@@ -18,10 +19,35 @@ class GravitionalDimensionalityReduction():
         else:
             self._final_DR_method = final_DR_method
         self._supervised_mode = supervised_mode
+        self._do_sort_by_density = do_sort_by_density
         self._n_samples = None
         self._dimensionality = None
         self._n_classes = None
         self._class_names = None
+
+    def test(self):
+        x_i = np.array([1, 1, 1])
+        x_j = np.array([2, 3, 4])
+        r_ij = np.linalg.norm(x_i - x_j)
+        delta_ij_value = 1/r_ij
+        delta_ij_direction = x_i - x_j
+        # delta_ij_direction = x_j - x_i
+        delta_ij = delta_ij_value * delta_ij_direction
+        x_k = x_j + delta_ij
+
+        labels = [0,1,2]
+        self._n_classes = len(np.unique(labels))
+        self._class_names = [str(i) for i in range(self._n_classes)]
+        plt = utils.plot_3D(X=np.asarray([x_i, x_j, x_k]), labels=labels, class_names=self._class_names)
+        plt.show()
+
+        # fig = plt.figure(figsize=(12, 12))
+        # ax = fig.add_subplot(projection='3d')
+        # # ax.scatter([x_i[0], x_j[0], x_k[0]], [x_i[1], x_j[1], x_k[1]])
+        # ax.scatter([x_i[0]], [x_i[1]], c='r')
+        # ax.scatter([x_j[0]], [x_j[1]], c='b')
+        # ax.scatter([x_k[0]], [x_k[1]], c='g')
+        # plt.show()
 
     def fit_transform(self, D: np.ndarray, labels: Optional[np.array] = None):
         """
@@ -42,40 +68,92 @@ class GravitionalDimensionalityReduction():
         self._dimensionality = D.shape[0]
         self._n_classes = len(np.unique(labels))
         self._class_names = [str(i) for i in range(self._n_classes)]
-        if DEBUG_MODE and SHOW_VISUALIZATION: 
-            plt = utils.plot_embedding_of_points(embedding=D.T, labels=labels, class_names=self._class_names, n_samples_plot=None)
-            plt.show()
+        # if DEBUG_MODE and SHOW_VISUALIZATION: 
+        #     plt = utils.plot_embedding_of_points(embedding=D.T, labels=labels, class_names=self._class_names, n_samples_plot=None)
+        #     plt.show()
 
         # apply PCA to go to PCA subspace (space manifold in physics):
         pca = PCA(n_components=3)
         X = (pca.fit_transform(D.T)).T
-        if DEBUG_MODE and SHOW_VISUALIZATION: 
-            plt =utils.plot_embedding_of_points(embedding=X.T, labels=labels, class_names=self._class_names, n_samples_plot=None)
-            plt.show()
+        # X = D
+        
+        if self._supervised_mode:
+            X_classes, indices_classes = self.convert_X_to_classes(X, labels)
 
         # sort based on density:
-        if not self._supervised_mode:
-            X = self._sort_by_density(X=X)
-        else:
-            X_classes = []
-            for label in range(self._n_classes):
-                X_class = X[:, labels == label].copy()
-                X_class = self._sort_by_density(X=X_class, class_label=label)
-                X_classes.append(X_class)
+        if self._do_sort_by_density:
+            if not self._supervised_mode:
+                X, labels, sorted_indices = self._sort_by_density(X=X, labels=labels)
+            else:
+                sorted_indices = [None] * self._n_classes
+                for label in range(self._n_classes):
+                    X_classes[label], sorted_indices[label] = self._sort_by_density(X=X_classes[label])
+
+        if DEBUG_MODE and SHOW_VISUALIZATION: 
+            # plt =utils.plot_embedding_of_points(embedding=X.T, labels=labels, class_names=self._class_names, n_samples_plot=None)
+            if not self._supervised_mode:
+                if self._do_sort_by_density:
+                    X_plot, labels_plot = self._unsort(sorted_indices, X, labels)
+                else:
+                    X_plot, labels_plot = X.copy(), labels.copy()
+            else:
+                if self._do_sort_by_density:
+                    X_classes_unsorted = X_classes.copy()
+                    for label in range(self._n_classes):
+                        X_classes_unsorted[label] = self._unsort(sorted_indices=sorted_indices[label], X=X_classes[label])
+                    X_plot = self.convert_classes_to_X(X_classes_unsorted, indices_classes)
+                else:
+                    X_plot = self.convert_classes_to_X(X_classes, indices_classes)
+                labels_plot = labels.copy()
+            plt = utils.plot_3D(X=X_plot.T, labels=labels_plot, class_names=self._class_names)
+            # plt = utils.plot_3D_classwise(X_classes=X_classes)
+            plt.show()
 
         # iterations of algorithm:
         for itr in range(self._max_itrations):
             if DEBUG_MODE: print(f'===== iteration: {itr}')
             if not self._supervised_mode:
-                X = self._main_algorithm(X=X)
+                X = self._main_algorithm2(X=X)
             else:
                 for label in range(self._n_classes):
-                    X_classes = self._main_algorithm(X=X_classes[label])
-            import pdb; pdb.set_trace()
+                    X_classes[label] = self._main_algorithm2(X=X_classes[label])
+            # import pdb; pdb.set_trace()
                 
         if self._supervised_mode:
             # TODO: make X from X_classes
             pass
+
+        # if DEBUG_MODE and SHOW_VISUALIZATION: 
+        #     # plt =utils.plot_embedding_of_points(embedding=X.T, labels=labels, class_names=self._class_names, n_samples_plot=None)
+        #     # plt = utils.plot_3D(X=X.T, labels=labels, class_names=self._class_names)
+        #     # plt = utils.plot_3D_classwise(X_classes=X_classes)
+        #     if not self._supervised_mode:
+        #         X_plot, labels_plot = self._unsort(sorted_indices, X, labels)
+        #     else:
+        #         X_plot = self.convert_classes_to_X(X_classes, indices_classes)  
+        #         labels_plot = labels 
+        #     plt = utils.plot_3D(X=X_plot.T, labels=labels_plot, class_names=self._class_names)
+        #     plt.show()
+
+        if DEBUG_MODE and SHOW_VISUALIZATION: 
+            # plt =utils.plot_embedding_of_points(embedding=X.T, labels=labels, class_names=self._class_names, n_samples_plot=None)
+            if not self._supervised_mode:
+                if self._do_sort_by_density:
+                    X_plot, labels_plot = self._unsort(sorted_indices, X, labels)
+                else:
+                    X_plot, labels_plot = X.copy(), labels.copy()
+            else:
+                if self._do_sort_by_density:
+                    X_classes_unsorted = X_classes.copy()
+                    for label in range(self._n_classes):
+                        X_classes_unsorted[label] = self._unsort(sorted_indices=sorted_indices[label], X=X_classes[label])
+                    X_plot = self.convert_classes_to_X(X_classes_unsorted, indices_classes)
+                else:
+                    X_plot = self.convert_classes_to_X(X_classes, indices_classes)
+                labels_plot = labels.copy()
+            plt = utils.plot_3D(X=X_plot.T, labels=labels_plot, class_names=self._class_names)
+            # plt = utils.plot_3D_classwise(X_classes=X_classes)
+            plt.show()
 
         # reconstruct from PCA subspace (space manifold in physics):
         D_modified = pca.inverse_transform(X=X.T)  # NOTE: D_modified is row-wise
@@ -84,23 +162,56 @@ class GravitionalDimensionalityReduction():
         D_transformed = self._final_DR_method.fit_transform(D_modified)  # NOTE: D_transformed is row-wise
 
         return D_transformed
-                    
+
+    def _main_algorithm2(self, X):
+        n_samples = X.shape[1]
+        for j in range(1, n_samples+1):  # affected by the gravitation of particles
+            if DEBUG_MODE and VERBOSITY >= 2: 
+                if j % 50 == 0:
+                    print(f'Processing instance {j} / {n_samples}')
+            x_j = X[:, -j]
+            # print('------------------------------')
+            delta = 0
+            for i in range(n_samples):  # the particle having gravity
+                x_i = X[:, i]
+                if i == (n_samples-j): continue         
+                if np.all(x_j == x_i): continue
+                r_ij = np.linalg.norm(x_i - x_j)
+                delta_ij_value = 1/r_ij
+                delta_ij_direction = x_i - x_j
+                # delta_ij_direction = x_j - x_i
+                delta_ij = delta_ij_value * delta_ij_direction
+                # x_j = x_j + delta_ij
+                delta += delta_ij
+            x_j = x_j + delta
+            X[:, -j] = x_j
+        return X
+
     def _main_algorithm(self, X):
         n_samples = X.shape[1]
         for j in range(1, n_samples+1):  # affected by the gravitation of particles
             if DEBUG_MODE and VERBOSITY >= 2: print(f'Processing instance {j} / {n_samples}')
             x_j = X[:, -j]
+            print('------------------------------')
             for i in range(n_samples):  # the particle having gravity
                 x_i = X[:, i]
                 if i == (n_samples-j): continue         
                 if np.all(x_j == x_i): continue
                 r_ij, theta_ij = self._caculate_r_and_theta(origin=x_i, x=x_j)
-                M_ij =  self._alpha / np.linalg.norm(x_i - x_j)
+                M_ij = self._alpha / np.linalg.norm(x_i - x_j)
+                # M_ij = self._alpha * np.linalg.norm(x_i - x_j)
                 g_ij = self._Schwarzschild_metric(r=r_ij, theta=theta_ij, M=M_ij, G=1, c=1, ignore_time_component=True)
+                print(g_ij[1,1], r_ij, theta_ij, M_ij, x_i, x_j)
                 eig_vectors, eig_values = self._solve_eigenvalue_problem(matrix=g_ij, sort=True, sort_descending=True, n_components=None)
-                delta_ij = eig_vectors[:, 0] * eig_values[0]
-                # delta_ij = eig_vectors[:, 0]
+                # delta_ij = eig_vectors[:, 0] * eig_values[0]
+                delta_ij = eig_vectors[:, 0]
+                # import pdb; pdb.set_trace()
+                # if not np.all(eig_vectors == np.array([[0., 0., 1.], [1., 0., 0.], [0., 1., 0.]])):
+                #     print(eig_vectors)
+                #     import pdb; pdb.set_trace()
+                # import pdb; pdb.set_trace()
                 x_j = self._move_in_spherical_coordinate_system(x=x_j, origin=x_i, delta=delta_ij)
+                # print(x_j, x_i)
             X[:, -j] = x_j
         return X
 
@@ -112,6 +223,7 @@ class GravitionalDimensionalityReduction():
         x_spherical = self._convert_Cartesian_to_spherical_coordinates(x=x)
         # movement in spherical coordinate system:
         x_spherical = x_spherical + delta
+        # print(x, origin, x_spherical, delta)
         # spherical to Cartesian conversion:
         x = self._convert_spherical_to_Cartesian_coordinates(x=x_spherical)
         # shift back based on origin:
@@ -211,7 +323,7 @@ class GravitionalDimensionalityReduction():
             eig_vec = eig_vec
         return eig_vec, eig_val
 
-    def _sort_by_density(self, X):
+    def _sort_by_density(self, X, labels=None):
         """
         Sort the samples based on density of Local Outlier Factor (LOF).
 
@@ -229,4 +341,46 @@ class GravitionalDimensionalityReduction():
         # sort from largest to smallest score:
         sorted_indices = np.argsort(density_scores)[::-1]
         X = X[:, sorted_indices]
+        if labels is not None:
+            labels = labels[sorted_indices]
+            return X, labels, sorted_indices
+        else:
+            return X, sorted_indices
+
+    def _unsort(self, sorted_indices, X, labels=None):
+        X_unsorted = np.zeros_like(X)
+        if labels is not None:
+            labels_unsorted = np.zeros_like(labels)
+        for i in range(X.shape[1]):
+            X_unsorted[:, sorted_indices[i]] = X[:, i]
+            if labels is not None:
+                labels_unsorted[sorted_indices[i]] = labels[i]
+        if labels is not None:
+            return X_unsorted, labels_unsorted
+        else:
+            return X_unsorted
+
+    def convert_X_to_classes(self, X, labels):
+        X_classes, indices_classes = [], []
+        n_classes = len(np.unique(labels))
+        for label in range(n_classes):
+            condition = (labels == label)
+            indices = np.array([int(i) if condition[i] else np.nan for i in range(len(condition))])
+            indices = indices[~np.isnan(indices)]
+            indices = indices.astype(int)
+            X_class = X[:, indices].copy()
+            X_classes.append(X_class)
+            indices_classes.append(indices)
+        return X_classes, indices_classes
+
+    def convert_classes_to_X(self, X_classes, indices_classes):
+        n_classes = len(X_classes)
+        n_samples = 0
+        n_dimensions = X_classes[0].shape[0]
+        for label in range(n_classes):
+            X_class = X_classes[label]
+            n_samples += X_class.shape[1]
+        X = np.zeros((n_dimensions, n_samples))
+        for label in range(n_classes):
+            X[:, indices_classes[label]] = X_classes[label]
         return X
