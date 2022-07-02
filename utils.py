@@ -9,7 +9,8 @@ def plot_3D(X, labels, class_names):
     dot_sizes = 50  #--> example: 10
     fig = plt.figure(figsize=figure_size)
     ax = fig.add_subplot(projection='3d')
-    ax.scatter(X[:, 0], X[:, 1], X[:, 2], s=dot_sizes, c=labels, cmap='Spectral', alpha=1.0)
+    p = ax.scatter(X[:, 0], X[:, 1], X[:, 2], s=dot_sizes, c=labels, cmap='Spectral', alpha=1.0)
+    fig.colorbar(p)
     return plt
 
 def plot_embedding_of_points(embedding: np.ndarray, labels: Optional[np.array], class_names: Optional[List[str]], 

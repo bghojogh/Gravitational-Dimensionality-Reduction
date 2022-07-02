@@ -124,9 +124,11 @@ class GravitionalDimensionalityReduction():
     def _main_algorithm_Relativity(self, X):
         n_samples = X.shape[1]
         for j in range(1, n_samples+1):  # affected by the gravitation of particles
-            if DEBUG_MODE and VERBOSITY >= 2: print(f'Processing instance {j} / {n_samples}')
+            if DEBUG_MODE and VERBOSITY >= 2: 
+                if j % 50 == 0:
+                    print(f'Processing instance {j} / {n_samples}')
             x_j = X[:, -j]
-            print('------------------------------')
+            # print('------------------------------')
             for i in range(n_samples):  # the particle having gravity
                 x_i = X[:, i]
                 if i == (n_samples-j): continue         
@@ -135,7 +137,7 @@ class GravitionalDimensionalityReduction():
                 M_ij = self._alpha / np.linalg.norm(x_i - x_j)
                 # M_ij = self._alpha * np.linalg.norm(x_i - x_j)
                 g_ij = self._Schwarzschild_metric(r=r_ij, theta=theta_ij, M=M_ij, G=1, c=1, ignore_time_component=True)
-                print(g_ij[1,1], r_ij, theta_ij, M_ij, x_i, x_j)
+                # print(g_ij[1,1], r_ij, theta_ij, M_ij, x_i, x_j)
                 eig_vectors, eig_values = self._solve_eigenvalue_problem(matrix=g_ij, sort=True, sort_descending=True, n_components=None)
                 # delta_ij = eig_vectors[:, 0] * eig_values[0]
                 delta_ij = eig_vectors[:, 0]
@@ -232,10 +234,10 @@ class GravitionalDimensionalityReduction():
     def _Schwarzschild_metric(self, r, theta, M, G=1, c=1, ignore_time_component=False):
         temp = 1 - ((2 * G * M) / (r * (c**2)))
         if not ignore_time_component:
-            t_component = - temp
-        r_component = 1 / temp
-        theta_component = r**2
-        phi_component = (r**2) * (math.sin(theta)**2)
+            t_component = temp
+        r_component = -1 * (1 / temp)
+        theta_component = -1 * r**2
+        phi_component = -1 * (r**2) * (math.sin(theta)**2)
         if not ignore_time_component:
             metric = np.diag([t_component, r_component, theta_component, phi_component])
         else:
@@ -356,10 +358,33 @@ class GravitionalDimensionalityReduction():
         x_i = np.array([1, 1, 1])
         x_j = np.array([2, 3, 4])
         r_ij = np.linalg.norm(x_i - x_j)
-        delta_ij_value = 1/r_ij
-        delta_ij_direction = x_i - x_j
-        delta_ij = delta_ij_value * delta_ij_direction
-        x_k = x_j + delta_ij
+        # weights:
+        beta = [0.3, 0.3, 0.3]
+        # beta = [0.8, 0.1, 0.1]
+        # beta = [1, 0, 0]
+        beta = beta / np.sum(beta)
+        assert (np.sum(beta) == 1)
+        # amount of movement:
+        movement_amount = 1/r_ij
+        movement_amount_in_r = movement_amount * beta[0]
+        movement_amount_in_theta = movement_amount * beta[1]
+        movement_amount_in_phi = movement_amount * beta[2]
+        # parameters:
+        G, M, c = 1, 1, 1
+        r, theta = self._caculate_r_and_theta(origin=x_i, x=x_j)
+        # movement in r:
+        temp = 1 - ((2 * G * M) / (r * (c**2)))
+        r_component = 1 / temp
+        delta_ij_value_r = -1 * (movement_amount_in_r / r_component)**0.5
+        # movement in theta:
+        theta_component = r**2
+        delta_ij_value_theta = -1 * (movement_amount_in_theta / theta_component)**0.5
+        # movement in phi:
+        phi_component = (r**2) * (math.sin(theta)**2)
+        delta_ij_value_phi = -1 * (movement_amount_in_phi / phi_component)**0.5
+        # movement:
+        delta_ij = [delta_ij_value_r, delta_ij_value_theta, delta_ij_value_phi]
+        x_k = self._move_in_spherical_coordinate_system(x=x_j, origin=x_i, delta=delta_ij)
 
         labels = [0,1,2]
         self._n_classes = len(np.unique(labels))

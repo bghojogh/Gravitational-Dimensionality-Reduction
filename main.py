@@ -13,7 +13,7 @@ ALPHA = 1
 FINAL_DR_METHOD = None
 SUPERVISED_MODE = True
 DO_SORT_BY_DENSITY = True
-METHOD = 'Newtonian'  #--> 'Newtonian', 'Relativity'
+METHOD = 'Relativity'  #--> 'Newtonian', 'Relativity'
 
 # experiment type:
 EXPERIMENT = 'test_Relativity_movement' #--> 'main_algorithm', 'test_Newtonian_movement', 'test_Relativity_movement'
