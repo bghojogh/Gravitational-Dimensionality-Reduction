@@ -11,7 +11,7 @@ VERBOSITY = 2
 SHOW_VISUALIZATION = True
 
 class GravitionalDimensionalityReduction():
-    def __init__(self, max_itrations=100, alpha=1, final_DR_method=None, supervised_mode=False, do_sort_by_density=True) -> None:
+    def __init__(self, max_itrations=100, alpha=1, final_DR_method=None, supervised_mode=False, do_sort_by_density=True, method='Newtonian') -> None:
         self._max_itrations = max_itrations
         self._alpha = alpha
         if final_DR_method is None:
@@ -20,34 +20,11 @@ class GravitionalDimensionalityReduction():
             self._final_DR_method = final_DR_method
         self._supervised_mode = supervised_mode
         self._do_sort_by_density = do_sort_by_density
+        self._method = method
         self._n_samples = None
         self._dimensionality = None
         self._n_classes = None
         self._class_names = None
-
-    def test(self):
-        x_i = np.array([1, 1, 1])
-        x_j = np.array([2, 3, 4])
-        r_ij = np.linalg.norm(x_i - x_j)
-        delta_ij_value = 1/r_ij
-        delta_ij_direction = x_i - x_j
-        # delta_ij_direction = x_j - x_i
-        delta_ij = delta_ij_value * delta_ij_direction
-        x_k = x_j + delta_ij
-
-        labels = [0,1,2]
-        self._n_classes = len(np.unique(labels))
-        self._class_names = [str(i) for i in range(self._n_classes)]
-        plt = utils.plot_3D(X=np.asarray([x_i, x_j, x_k]), labels=labels, class_names=self._class_names)
-        plt.show()
-
-        # fig = plt.figure(figsize=(12, 12))
-        # ax = fig.add_subplot(projection='3d')
-        # # ax.scatter([x_i[0], x_j[0], x_k[0]], [x_i[1], x_j[1], x_k[1]])
-        # ax.scatter([x_i[0]], [x_i[1]], c='r')
-        # ax.scatter([x_j[0]], [x_j[1]], c='b')
-        # ax.scatter([x_k[0]], [x_k[1]], c='g')
-        # plt.show()
 
     def fit_transform(self, D: np.ndarray, labels: Optional[np.array] = None):
         """
@@ -68,17 +45,16 @@ class GravitionalDimensionalityReduction():
         self._dimensionality = D.shape[0]
         self._n_classes = len(np.unique(labels))
         self._class_names = [str(i) for i in range(self._n_classes)]
-        # if DEBUG_MODE and SHOW_VISUALIZATION: 
-        #     plt = utils.plot_embedding_of_points(embedding=D.T, labels=labels, class_names=self._class_names, n_samples_plot=None)
-        #     plt.show()
 
         # apply PCA to go to PCA subspace (space manifold in physics):
         pca = PCA(n_components=3)
         X = (pca.fit_transform(D.T)).T
-        # X = D
         
+        # in supervised case, make X_classes from X:
         if self._supervised_mode:
-            X_classes, indices_classes = self.convert_X_to_classes(X, labels)
+            X_classes, indices_classes = self._convert_X_to_classes(X, labels)
+        else:
+            X_classes, indices_classes = None, None
 
         # sort based on density:
         if self._do_sort_by_density:
@@ -88,72 +64,33 @@ class GravitionalDimensionalityReduction():
                 sorted_indices = [None] * self._n_classes
                 for label in range(self._n_classes):
                     X_classes[label], sorted_indices[label] = self._sort_by_density(X=X_classes[label])
+        else:
+            sorted_indices = None
 
         if DEBUG_MODE and SHOW_VISUALIZATION: 
-            # plt =utils.plot_embedding_of_points(embedding=X.T, labels=labels, class_names=self._class_names, n_samples_plot=None)
-            if not self._supervised_mode:
-                if self._do_sort_by_density:
-                    X_plot, labels_plot = self._unsort(sorted_indices, X, labels)
-                else:
-                    X_plot, labels_plot = X.copy(), labels.copy()
-            else:
-                if self._do_sort_by_density:
-                    X_classes_unsorted = X_classes.copy()
-                    for label in range(self._n_classes):
-                        X_classes_unsorted[label] = self._unsort(sorted_indices=sorted_indices[label], X=X_classes[label])
-                    X_plot = self.convert_classes_to_X(X_classes_unsorted, indices_classes)
-                else:
-                    X_plot = self.convert_classes_to_X(X_classes, indices_classes)
-                labels_plot = labels.copy()
-            plt = utils.plot_3D(X=X_plot.T, labels=labels_plot, class_names=self._class_names)
-            # plt = utils.plot_3D_classwise(X_classes=X_classes)
-            plt.show()
+            self._visualize_embedding(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
 
         # iterations of algorithm:
         for itr in range(self._max_itrations):
             if DEBUG_MODE: print(f'===== iteration: {itr}')
             if not self._supervised_mode:
-                X = self._main_algorithm2(X=X)
+                if self._method == 'Newtonian':
+                    X = self._main_algorithm_Newtonian(X=X)
+                elif self._method == 'Relativity':
+                    X = self._main_algorithm_Relativity(X=X)
             else:
                 for label in range(self._n_classes):
-                    X_classes[label] = self._main_algorithm2(X=X_classes[label])
-            # import pdb; pdb.set_trace()
-                
+                    if self._method == 'Newtonian':
+                        X_classes[label] = self._main_algorithm_Newtonian(X=X_classes[label])
+                    elif self._method == 'Relativity':
+                        X_classes[label] = self._main_algorithm_Relativity(X=X_classes[label])
+
+        if DEBUG_MODE and SHOW_VISUALIZATION:
+            self._visualize_embedding(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
+
+        # in supervised case, make X from X_classes:
         if self._supervised_mode:
-            # TODO: make X from X_classes
-            pass
-
-        # if DEBUG_MODE and SHOW_VISUALIZATION: 
-        #     # plt =utils.plot_embedding_of_points(embedding=X.T, labels=labels, class_names=self._class_names, n_samples_plot=None)
-        #     # plt = utils.plot_3D(X=X.T, labels=labels, class_names=self._class_names)
-        #     # plt = utils.plot_3D_classwise(X_classes=X_classes)
-        #     if not self._supervised_mode:
-        #         X_plot, labels_plot = self._unsort(sorted_indices, X, labels)
-        #     else:
-        #         X_plot = self.convert_classes_to_X(X_classes, indices_classes)  
-        #         labels_plot = labels 
-        #     plt = utils.plot_3D(X=X_plot.T, labels=labels_plot, class_names=self._class_names)
-        #     plt.show()
-
-        if DEBUG_MODE and SHOW_VISUALIZATION: 
-            # plt =utils.plot_embedding_of_points(embedding=X.T, labels=labels, class_names=self._class_names, n_samples_plot=None)
-            if not self._supervised_mode:
-                if self._do_sort_by_density:
-                    X_plot, labels_plot = self._unsort(sorted_indices, X, labels)
-                else:
-                    X_plot, labels_plot = X.copy(), labels.copy()
-            else:
-                if self._do_sort_by_density:
-                    X_classes_unsorted = X_classes.copy()
-                    for label in range(self._n_classes):
-                        X_classes_unsorted[label] = self._unsort(sorted_indices=sorted_indices[label], X=X_classes[label])
-                    X_plot = self.convert_classes_to_X(X_classes_unsorted, indices_classes)
-                else:
-                    X_plot = self.convert_classes_to_X(X_classes, indices_classes)
-                labels_plot = labels.copy()
-            plt = utils.plot_3D(X=X_plot.T, labels=labels_plot, class_names=self._class_names)
-            # plt = utils.plot_3D_classwise(X_classes=X_classes)
-            plt.show()
+            X = self._convert_classes_to_X(X_classes, indices_classes)
 
         # reconstruct from PCA subspace (space manifold in physics):
         D_modified = pca.inverse_transform(X=X.T)  # NOTE: D_modified is row-wise
@@ -163,14 +100,13 @@ class GravitionalDimensionalityReduction():
 
         return D_transformed
 
-    def _main_algorithm2(self, X):
+    def _main_algorithm_Newtonian(self, X):
         n_samples = X.shape[1]
         for j in range(1, n_samples+1):  # affected by the gravitation of particles
             if DEBUG_MODE and VERBOSITY >= 2: 
                 if j % 50 == 0:
                     print(f'Processing instance {j} / {n_samples}')
             x_j = X[:, -j]
-            # print('------------------------------')
             delta = 0
             for i in range(n_samples):  # the particle having gravity
                 x_i = X[:, i]
@@ -179,15 +115,13 @@ class GravitionalDimensionalityReduction():
                 r_ij = np.linalg.norm(x_i - x_j)
                 delta_ij_value = 1/r_ij
                 delta_ij_direction = x_i - x_j
-                # delta_ij_direction = x_j - x_i
                 delta_ij = delta_ij_value * delta_ij_direction
-                # x_j = x_j + delta_ij
                 delta += delta_ij
             x_j = x_j + delta
             X[:, -j] = x_j
         return X
 
-    def _main_algorithm(self, X):
+    def _main_algorithm_Relativity(self, X):
         n_samples = X.shape[1]
         for j in range(1, n_samples+1):  # affected by the gravitation of particles
             if DEBUG_MODE and VERBOSITY >= 2: print(f'Processing instance {j} / {n_samples}')
@@ -360,7 +294,7 @@ class GravitionalDimensionalityReduction():
         else:
             return X_unsorted
 
-    def convert_X_to_classes(self, X, labels):
+    def _convert_X_to_classes(self, X, labels):
         X_classes, indices_classes = [], []
         n_classes = len(np.unique(labels))
         for label in range(n_classes):
@@ -373,7 +307,7 @@ class GravitionalDimensionalityReduction():
             indices_classes.append(indices)
         return X_classes, indices_classes
 
-    def convert_classes_to_X(self, X_classes, indices_classes):
+    def _convert_classes_to_X(self, X_classes, indices_classes):
         n_classes = len(X_classes)
         n_samples = 0
         n_dimensions = X_classes[0].shape[0]
@@ -384,3 +318,39 @@ class GravitionalDimensionalityReduction():
         for label in range(n_classes):
             X[:, indices_classes[label]] = X_classes[label]
         return X
+
+    def _visualize_embedding(self, X, X_classes, labels, sorted_indices, indices_classes):
+        if not self._supervised_mode:
+            if self._do_sort_by_density:
+                X_plot, labels_plot = self._unsort(sorted_indices, X, labels)
+            else:
+                X_plot, labels_plot = X.copy(), labels.copy()
+        else:
+            if self._do_sort_by_density:
+                X_classes_unsorted = X_classes.copy()
+                for label in range(self._n_classes):
+                    X_classes_unsorted[label] = self._unsort(sorted_indices=sorted_indices[label], X=X_classes[label])
+                X_plot = self._convert_classes_to_X(X_classes_unsorted, indices_classes)
+            else:
+                X_plot = self._convert_classes_to_X(X_classes, indices_classes)
+            labels_plot = labels.copy()
+        plt = utils.plot_3D(X=X_plot.T, labels=labels_plot, class_names=self._class_names)
+        plt.show()
+
+    def test_Newtonian_movement(self):
+        x_i = np.array([1, 1, 1])
+        x_j = np.array([2, 3, 4])
+        r_ij = np.linalg.norm(x_i - x_j)
+        delta_ij_value = 1/r_ij
+        delta_ij_direction = x_i - x_j
+        delta_ij = delta_ij_value * delta_ij_direction
+        x_k = x_j + delta_ij
+
+        labels = [0,1,2]
+        self._n_classes = len(np.unique(labels))
+        self._class_names = [str(i) for i in range(self._n_classes)]
+        plt = utils.plot_3D(X=np.asarray([x_i, x_j, x_k]), labels=labels, class_names=self._class_names)
+        plt.show()
+
+    def test_Relativity_movement(self):
+        pass
