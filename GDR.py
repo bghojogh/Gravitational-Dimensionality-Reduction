@@ -46,13 +46,16 @@ class GravitionalDimensionalityReduction():
         self._n_classes = None
         self._class_names = None
 
-    def fit_transform(self, D: np.ndarray, labels: Optional[np.array] = None):
+    def fit_transform(self, D: np.ndarray, labels: Optional[np.array] = None) -> np.ndarray:
         """
         Fit and transform the data for dimensionality reduction.
 
         Args:
             D (np.ndarray): The row-wise dataset, with rows as samples and columns as features
             labels (np.array): The labels of samples, if the samples are labeled. 
+
+        Returns:
+            D_transformed (np.ndarray): The row-wise transformed dataset, with rows as samples and columns as features
         """
         if self._supervised_mode:
             assert(labels is not None)
@@ -88,14 +91,21 @@ class GravitionalDimensionalityReduction():
             sorted_indices = None
 
         if SHOW_VISUALIZATION or SAVE_VISUALIZATION: 
-            plt, X_plot, labels_plot = self._visualize_embedding(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
-            if SHOW_VISUALIZATION: plt.show()
+            X_final, labels_final = self._unsort_and_convertToX_if_necessary(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
+            plt1 = utils.plot_3D(X=X_final.T, labels=labels_final, class_names=self._class_names)
+            if SHOW_VISUALIZATION: plt1.show()
             if SAVE_VISUALIZATION: 
                 if not os.path.exists(PATH_SAVE): os.makedirs(PATH_SAVE)
-                plt.savefig(PATH_SAVE+'before_iterations.png')
+                plt1.savefig(PATH_SAVE+'3D_before_iterations.png')
                 if not os.path.exists(PATH_SAVE+'plot_files/'): os.makedirs(PATH_SAVE+'plot_files/')
-                utils.save_variable(variable=X_plot, name_of_variable='before_iterations_X_plot', path_to_save=PATH_SAVE+'plot_files/')
-                utils.save_variable(variable=labels_plot, name_of_variable='before_iterations_labels_plot', path_to_save=PATH_SAVE+'plot_files/')
+                utils.save_variable(variable=X_final, name_of_variable='before_iterations_X', path_to_save=PATH_SAVE+'plot_files/')
+                utils.save_variable(variable=labels_final, name_of_variable='before_iterations_labels', path_to_save=PATH_SAVE+'plot_files/')
+            D_transformed = pca.inverse_transform(X=X_final.T)
+            plt2 = utils.plot_embedding_of_points(embedding=D_transformed, labels=labels_final, class_names=self._class_names, n_samples_plot=2000, method='tsne')
+            if SHOW_VISUALIZATION: plt2.show()
+            if SAVE_VISUALIZATION: 
+                plt2.savefig(PATH_SAVE+f'highDim_before_iterations.png')
+                utils.save_variable(variable=D_transformed, name_of_variable=f'before_iterations_D', path_to_save=PATH_SAVE+'plot_files/')
 
         # iterations of algorithm:
         for itr in range(self._max_itrations):
@@ -112,21 +122,29 @@ class GravitionalDimensionalityReduction():
                     elif self._method == 'Relativity':
                         X_classes[label] = self._main_algorithm_Relativity(X=X_classes[label])
             if SHOW_VISUALIZATION or SAVE_VISUALIZATION: 
-                plt, X_plot, labels_plot = self._visualize_embedding(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
-                if SHOW_VISUALIZATION: plt.show()
+                X_final, labels_final = self._unsort_and_convertToX_if_necessary(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
+                plt1 = utils.plot_3D(X=X_final.T, labels=labels_final, class_names=self._class_names)
+                if SHOW_VISUALIZATION: plt1.show()
                 if SAVE_VISUALIZATION: 
                     if not os.path.exists(PATH_SAVE): os.makedirs(PATH_SAVE)
-                    plt.savefig(PATH_SAVE+f'itr_{itr}.png')
+                    plt1.savefig(PATH_SAVE+f'3D_itr_{itr}.png')
                     if not os.path.exists(PATH_SAVE+'plot_files/'): os.makedirs(PATH_SAVE+'plot_files/')
-                    utils.save_variable(variable=X_plot, name_of_variable=f'itr_{itr}_X_plot', path_to_save=PATH_SAVE+'plot_files/')
-                    utils.save_variable(variable=labels_plot, name_of_variable=f'itr_{itr}_labels_plot', path_to_save=PATH_SAVE+'plot_files/')
+                    utils.save_variable(variable=X_final, name_of_variable=f'itr_{itr}_X', path_to_save=PATH_SAVE+'plot_files/')
+                    utils.save_variable(variable=labels_final, name_of_variable=f'itr_{itr}_labels', path_to_save=PATH_SAVE+'plot_files/')
+                D_transformed = pca.inverse_transform(X=X_final.T)
+                plt2 = utils.plot_embedding_of_points(embedding=D_transformed, labels=labels_final, class_names=self._class_names, n_samples_plot=2000, method='tsne')
+                if SHOW_VISUALIZATION: plt2.show()
+                if SAVE_VISUALIZATION: 
+                    plt2.savefig(PATH_SAVE+f'highDim_itr_{itr}.png')
+                    utils.save_variable(variable=D_transformed, name_of_variable=f'itr_{itr}_D', path_to_save=PATH_SAVE+'plot_files/')
+
 
         # in supervised case, make X from X_classes:
         if self._supervised_mode:
             X = self._convert_classes_to_X(X_classes, indices_classes)
 
         # reconstruct from PCA subspace (space manifold in physics):
-        D_transformed = pca.inverse_transform(X=X.T)  # NOTE: D_modified is row-wise
+        D_transformed = pca.inverse_transform(X=X.T)  # NOTE: D_transformed is row-wise
 
         return D_transformed
 
@@ -490,10 +508,10 @@ class GravitionalDimensionalityReduction():
             X[:, indices_classes[label]] = X_classes[label]
         return X
 
-    def _visualize_embedding(self, X: np.ndarray, X_classes: List[np.ndarray], labels: Union[np.array, None], 
+    def _visualize_embedding_highDimensional(self, X: np.ndarray, X_classes: List[np.ndarray], labels: Union[np.array, None], 
                             sorted_indices: List[int], indices_classes: List[np.array]) -> Tuple[matplotlib_pyplot, np.ndarray, np.array]:
         """
-        Visualize embedding in 3D plot.
+        Visualize the high dimensional embedding in 3D plot.
 
         Args:
             X (np.ndarray): the column-wise dataset, with columns as samples and rows as features 
@@ -523,7 +541,80 @@ class GravitionalDimensionalityReduction():
                 X_plot = self._convert_classes_to_X(X_classes, indices_classes)
             labels_plot = labels.copy()
         plt = utils.plot_3D(X=X_plot.T, labels=labels_plot, class_names=self._class_names)
+        
+        if self._supervised_mode: X_transformed_3D = self._convert_classes_to_X(X_classes, indices_classes)
+        D_transformed = pca.inverse_transform(X=X_transformed_3D.T)
+        
         return plt, X_plot, labels_plot
+
+    def _visualize_embedding_3D(self, X: np.ndarray, labels: Union[np.array, None], 
+                            sorted_indices: List[int], indices_classes: List[np.array]) -> Tuple[matplotlib_pyplot, np.ndarray, np.array]:
+        """
+        Visualize embedding in 3D plot.
+
+        Args:
+            X (np.ndarray): the column-wise dataset, with columns as samples and rows as features 
+            X_classes (List[np.ndarray]): the list of data points inside each class. 
+                The matrix of every class is column-wise, with columns as samples and rows as features.
+            labels (np.array): the labels of samples, if the samples are labeled
+            sorted_indices (List[int]): the sorted indices
+            indices_classes (List[np.array]): the indices of points for every class
+
+        Returns:
+            plt (matplotlib.pyplot): the plot object. Use plt.show or plt.savefig for showing or saving it, respectively.
+            X_plot (np.ndarray): the data of plot.
+            labels_plot (np.array): the labels of plot (for color of plot).
+        """
+        plt, X_plot, labels_plot = self._unsort_and_convertToX_if_necessary(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
+        # if not self._supervised_mode:
+        #     if self._do_sort_by_density:
+        #         X_plot, labels_plot = self._unsort(sorted_indices, X, labels)
+        #     else:
+        #         X_plot, labels_plot = X.copy(), labels.copy()
+        # else:
+        #     if self._do_sort_by_density:
+        #         X_classes_unsorted = X_classes.copy()
+        #         for label in range(self._n_classes):
+        #             X_classes_unsorted[label] = self._unsort(sorted_indices=sorted_indices[label], X=X_classes[label])
+        #         X_plot = self._convert_classes_to_X(X_classes_unsorted, indices_classes)
+        #     else:
+        #         X_plot = self._convert_classes_to_X(X_classes, indices_classes)
+        #     labels_plot = labels.copy()
+        # plt = utils.plot_3D(X=X_plot.T, labels=labels_plot, class_names=self._class_names)
+        # return plt, X_plot, labels_plot
+
+    def _unsort_and_convertToX_if_necessary(self, X: np.ndarray, X_classes: List[np.ndarray], labels: Union[np.array, None], 
+                            sorted_indices: List[int], indices_classes: List[np.array]) -> Tuple[np.ndarray, np.array]:
+        """
+        Unsort and convert X_classes to X, if necessary.
+
+        Args:
+            X (np.ndarray): the column-wise dataset, with columns as samples and rows as features 
+            X_classes (List[np.ndarray]): the list of data points inside each class. 
+                The matrix of every class is column-wise, with columns as samples and rows as features.
+            labels (np.array): the labels of samples, if the samples are labeled
+            sorted_indices (List[int]): the sorted indices
+            indices_classes (List[np.array]): the indices of points for every class
+
+        Returns:
+            X_final (np.ndarray): the data of plot.
+            labels_final (np.array): the labels of plot (for color of plot).
+        """
+        if not self._supervised_mode:
+            if self._do_sort_by_density:
+                X_final, labels_final = self._unsort(sorted_indices, X, labels)
+            else:
+                X_final, labels_final = X.copy(), labels.copy()
+        else:
+            if self._do_sort_by_density:
+                X_classes_unsorted = X_classes.copy()
+                for label in range(self._n_classes):
+                    X_classes_unsorted[label] = self._unsort(sorted_indices=sorted_indices[label], X=X_classes[label])
+                X_final = self._convert_classes_to_X(X_classes_unsorted, indices_classes)
+            else:
+                X_final = self._convert_classes_to_X(X_classes, indices_classes)
+            labels_final = labels.copy()
+        return X_final, labels_final
 
     def test_Newtonian_movement(self) -> None:
         """Test Newtonian movement for two test points."""

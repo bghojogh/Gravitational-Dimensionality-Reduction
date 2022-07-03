@@ -70,7 +70,7 @@ def plot_3D(X: np.ndarray, labels: np.array, class_names: List[str]) -> matplotl
     fig.colorbar(p)
     return plt
 
-def plot_embedding_of_points(embedding: np.ndarray, labels: Optional[np.array], class_names: Optional[List[str]], 
+def plot_embedding_of_points(embedding: np.ndarray, labels: Optional[np.array], class_names: Optional[List[str]] = None, 
                             n_samples_plot: Optional[int] = None, method: Optional[str] = 'tsne') -> matplotlib_pyplot:
     """
     Plot the embedding for visualization.
@@ -99,6 +99,9 @@ def plot_embedding_of_points(embedding: np.ndarray, labels: Optional[np.array], 
         elif method == 'tsne':
             embedding = TSNE(n_components=2, learning_rate='auto', init='random').fit_transform(embedding)
     _, ax = plt.subplots(1, figsize=figure_size)
+    if class_names is None:
+        n_classes = len(np.unique(labels))
+        class_names = [str(i) for i in range(n_classes)]
     n_classes = len(class_names)
     plt.scatter(embedding[:, 0], embedding[:, 1], s=dot_sizes, c=labels, cmap='Spectral', alpha=1.0)
     # plt.setp(ax, xticks=[], yticks=[])
