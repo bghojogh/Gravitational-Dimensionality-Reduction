@@ -47,3 +47,18 @@ def plot_embedding_of_points(embedding: np.ndarray, labels: Optional[np.array], 
     cbar.set_ticks(np.arange(n_classes))
     cbar.set_ticklabels(class_names)
     return plt
+
+def solve_eigenvalue_problem(matrix, sort=True, sort_descending=True, n_components=None):
+    eig_val, eig_vec = np.linalg.eigh(matrix)
+    if sort:
+        if sort_descending:
+            idx = eig_val.argsort()[::-1]  # sort eigenvalues in descending order (largest eigenvalue first)
+        else:
+            idx = eig_val.argsort()  # sort eigenvalues in ascending order (smallest eigenvalue first)
+        eig_val = eig_val[idx]
+        eig_vec = eig_vec[:, idx]
+    if n_components is not None:
+        eig_vec = eig_vec[:, 0:n_components]
+    else:
+        eig_vec = eig_vec
+    return eig_vec, eig_val

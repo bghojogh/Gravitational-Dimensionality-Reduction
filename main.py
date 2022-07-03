@@ -9,7 +9,7 @@ N_SAMPLES = 1000
 
 # parameters of class:
 MAX_ITERATIONS = 5
-ALPHA = 1
+ALPHA = [0.33, 0.33, 0.33]
 FINAL_DR_METHOD = None
 SUPERVISED_MODE = True
 DO_SORT_BY_DENSITY = True

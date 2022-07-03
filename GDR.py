@@ -11,9 +11,11 @@ VERBOSITY = 2
 SHOW_VISUALIZATION = True
 
 class GravitionalDimensionalityReduction():
-    def __init__(self, max_itrations=100, alpha=1, final_DR_method=None, supervised_mode=False, do_sort_by_density=True, method='Newtonian') -> None:
+    def __init__(self, max_itrations=100, alpha=[0.33, 0.33, 0.33], final_DR_method=None, 
+                supervised_mode=False, do_sort_by_density=True, method='Newtonian') -> None:
         self._max_itrations = max_itrations
         self._alpha = alpha
+        self._alpha = self._alpha / np.sum(self._alpha)  #--> make sure they sum to one
         if final_DR_method is None:
             self._final_DR_method = PCA()
         else:
@@ -135,14 +137,12 @@ class GravitionalDimensionalityReduction():
                 # calculate r:
                 r_ij = np.linalg.norm(x_i - x_j)
                 # weights:
-                beta = [0.3, 0.3, 0.3]
-                beta = beta / np.sum(beta)
-                assert (np.sum(beta) == 1)
+                assert (np.sum(self._alpha) == 1)
                 # amount of movement:
                 movement_amount = 1/r_ij
-                movement_amount_in_r = movement_amount * beta[0]
-                movement_amount_in_theta = movement_amount * beta[1]
-                movement_amount_in_phi = movement_amount * beta[2]
+                movement_amount_in_r = movement_amount * self._alpha[0]
+                movement_amount_in_theta = movement_amount * self._alpha[1]
+                movement_amount_in_phi = movement_amount * self._alpha[2]
                 # calculate r and theta:
                 r, theta = self._caculate_r_and_theta(origin=x_i, x=x_j)
                 # tensor components:
@@ -151,52 +151,20 @@ class GravitionalDimensionalityReduction():
                 theta_component = g[1, 1]
                 phi_component = g[2, 2]
                 # movement in r, theta, and phi directions:
-                # print('/////', r, theta, x_i, x_j)
-                # print('---------', r_component, theta_component, phi_component)
+                if DEBUG_MODE and VERBOSITY >= 3: print('r, theta, x_i, x_j: ', r, theta, x_i, x_j)
+                if DEBUG_MODE and VERBOSITY >= 3: print('r_component, theta_component, phi_component: ', r_component, theta_component, phi_component)
                 if r_component > 0:
                     delta_ij_value_r = -1 * (movement_amount_in_r / r_component)**0.5
                 else:
                     delta_ij_value_r = 0
                 delta_ij_value_theta = -1 * (movement_amount_in_theta / theta_component)**0.5
                 delta_ij_value_phi = -1 * (movement_amount_in_phi / phi_component)**0.5
-                if np.isnan(delta_ij_value_r):
-                    print('hi')
                 # overall movement:
                 delta_ij = [delta_ij_value_r, delta_ij_value_theta, delta_ij_value_phi]
-                # print(delta_ij)
+                if DEBUG_MODE and VERBOSITY >= 3: print('delta_ij: ', delta_ij)
                 x_j = self._move_in_spherical_coordinate_system(x=x_j, origin=x_i, delta=delta_ij)
             X[:, -j] = x_j
         return X
-
-    # def _main_algorithm_Relativity(self, X):
-    #     n_samples = X.shape[1]
-    #     for j in range(1, n_samples+1):  # affected by the gravitation of particles
-    #         if DEBUG_MODE and VERBOSITY >= 2: 
-    #             if j % 50 == 0:
-    #                 print(f'Processing instance {j} / {n_samples}')
-    #         x_j = X[:, -j]
-    #         # print('------------------------------')
-    #         for i in range(n_samples):  # the particle having gravity
-    #             x_i = X[:, i]
-    #             if i == (n_samples-j): continue         
-    #             if np.all(x_j == x_i): continue
-    #             r_ij, theta_ij = self._caculate_r_and_theta(origin=x_i, x=x_j)
-    #             M_ij = self._alpha / np.linalg.norm(x_i - x_j)
-    #             # M_ij = self._alpha * np.linalg.norm(x_i - x_j)
-    #             g_ij = self._Schwarzschild_metric(r=r_ij, theta=theta_ij, M=M_ij, G=1, c=1, ignore_time_component=True)
-    #             # print(g_ij[1,1], r_ij, theta_ij, M_ij, x_i, x_j)
-    #             eig_vectors, eig_values = self._solve_eigenvalue_problem(matrix=g_ij, sort=True, sort_descending=True, n_components=None)
-    #             # delta_ij = eig_vectors[:, 0] * eig_values[0]
-    #             delta_ij = eig_vectors[:, 0]
-    #             # import pdb; pdb.set_trace()
-    #             # if not np.all(eig_vectors == np.array([[0., 0., 1.], [1., 0., 0.], [0., 1., 0.]])):
-    #             #     print(eig_vectors)
-    #             #     import pdb; pdb.set_trace()
-    #             # import pdb; pdb.set_trace()
-    #             x_j = self._move_in_spherical_coordinate_system(x=x_j, origin=x_i, delta=delta_ij)
-    #             # print(x_j, x_i)
-    #         X[:, -j] = x_j
-    #     return X
 
     def _move_in_spherical_coordinate_system(self, x, origin, delta):
         assert (not np.all(x == origin))
@@ -290,21 +258,6 @@ class GravitionalDimensionalityReduction():
         else:
             metric = np.diag([r_component, theta_component, phi_component])
         return metric
-
-    def _solve_eigenvalue_problem(self, matrix, sort=True, sort_descending=True, n_components=None):
-        eig_val, eig_vec = np.linalg.eigh(matrix)
-        if sort:
-            if sort_descending:
-                idx = eig_val.argsort()[::-1]  # sort eigenvalues in descending order (largest eigenvalue first)
-            else:
-                idx = eig_val.argsort()  # sort eigenvalues in ascending order (smallest eigenvalue first)
-            eig_val = eig_val[idx]
-            eig_vec = eig_vec[:, idx]
-        if n_components is not None:
-            eig_vec = eig_vec[:, 0:n_components]
-        else:
-            eig_vec = eig_vec
-        return eig_vec, eig_val
 
     def _sort_by_density(self, X, labels=None):
         """
@@ -406,16 +359,12 @@ class GravitionalDimensionalityReduction():
         x_j = np.array([2, 3, 4])
         r_ij = np.linalg.norm(x_i - x_j)
         # weights:
-        beta = [0.3, 0.3, 0.3]
-        # beta = [0.8, 0.1, 0.1]
-        # beta = [1, 0, 0]
-        beta = beta / np.sum(beta)
-        assert (np.sum(beta) == 1)
+        assert (np.sum(self._alpha) == 1)
         # amount of movement:
         movement_amount = 1/r_ij
-        movement_amount_in_r = movement_amount * beta[0]
-        movement_amount_in_theta = movement_amount * beta[1]
-        movement_amount_in_phi = movement_amount * beta[2]
+        movement_amount_in_r = movement_amount * self._alpha[0]
+        movement_amount_in_theta = movement_amount * self._alpha[1]
+        movement_amount_in_phi = movement_amount * self._alpha[2]
         # calculate r and theta:
         r, theta = self._caculate_r_and_theta(origin=x_i, x=x_j)
         # tensor components:
