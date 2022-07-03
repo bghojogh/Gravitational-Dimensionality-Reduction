@@ -1,4 +1,3 @@
-from tkinter.tix import MAX
 from GDR import GravitionalDimensionalityReduction
 import numpy as np
 from sklearn.datasets import load_digits
@@ -10,7 +9,6 @@ N_SAMPLES = 1000
 # parameters of class:
 MAX_ITERATIONS = 5
 ALPHA = [0.33, 0.33, 0.33]  #--> [0.33, 0.33, 0.33], [1, 0, 0], ...
-FINAL_DR_METHOD = None
 SUPERVISED_MODE = True
 DO_SORT_BY_DENSITY = True
 METHOD = 'Relativity'  #--> 'Newtonian', 'Relativity'
@@ -26,9 +24,8 @@ def main():
     labels = labels[:N_SAMPLES]
     
     # instantiate class:
-    gdr = GravitionalDimensionalityReduction(max_itrations=MAX_ITERATIONS, alpha=ALPHA, final_DR_method=FINAL_DR_METHOD, 
-                                            supervised_mode=SUPERVISED_MODE, do_sort_by_density=DO_SORT_BY_DENSITY, 
-                                            method=METHOD, metric=METRIC)
+    gdr = GravitionalDimensionalityReduction(max_itrations=MAX_ITERATIONS, alpha=ALPHA, supervised_mode=SUPERVISED_MODE, 
+                                            do_sort_by_density=DO_SORT_BY_DENSITY, method=METHOD, metric=METRIC)
     
     # experiment:
     if EXPERIMENT == 'main_algorithm':

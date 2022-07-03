@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.decomposition import PCA
-from typing import Optional
+from typing import Optional, List, Union, Tuple
 import math
 import utils
 from sklearn.neighbors import LocalOutlierFactor as LOF
@@ -11,15 +11,28 @@ VERBOSITY = 2
 SHOW_VISUALIZATION = True
 
 class GravitionalDimensionalityReduction():
-    def __init__(self, max_itrations=100, alpha=[0.33, 0.33, 0.33], final_DR_method=None, 
-                supervised_mode=False, do_sort_by_density=True, method='Newtonian', metric="Schwarzschild") -> None:
+    def __init__(self, max_itrations: Optional[int] = 100, alpha: Optional[List[float]] = [0.33, 0.33, 0.33], 
+                supervised_mode: Optional[bool] = False, do_sort_by_density: Optional[bool] = True, 
+                method: Optional[str] = 'Newtonian', metric: Optional[str] = "Schwarzschild") -> None:
+        """Class for Gravitational Dimensionality Reduction (GDR)
+        
+        Args:
+            max_itrations (int): the number of iterations for GDR algorithm
+            alpha (List[float]): the weights of movements in directions of every component in the space manifold.
+                The summation of elements of this list should be one.
+            supervised_mode (bool): if true, it is supervised; otherwise, it is unsupervised. 
+                The supervised version of GDR works much better. The unsupervised version is work in progress. 
+            do_sort_by_density (bool): if true, the points are sorted, by LOF density, for order of importance in gravity.
+                This parameter does not have any impact in Newtonian method because the overall movement in the Cartesian coordinate system is equivalent to summation os movements. 
+            method (str): the method for GDR algorithm, i.e., Newtonian and Relativity. 
+                Default is the Newtonian method. 
+            metric (str): the metric used in the Relativity method. 
+                Options are Schwarzschild (for general relativity) and Minkowski (for special relativity). Schwarzschild works much better.
+                This is only used for the Relativity method (and not for the Newtonian method).
+        """
         self._max_itrations = max_itrations
         self._alpha = alpha
         self._alpha = self._alpha / np.sum(self._alpha)  #--> make sure they sum to one
-        if final_DR_method is None:
-            self._final_DR_method = PCA()
-        else:
-            self._final_DR_method = final_DR_method
         self._supervised_mode = supervised_mode
         self._do_sort_by_density = do_sort_by_density
         self._method = method
@@ -96,14 +109,20 @@ class GravitionalDimensionalityReduction():
             X = self._convert_classes_to_X(X_classes, indices_classes)
 
         # reconstruct from PCA subspace (space manifold in physics):
-        D_modified = pca.inverse_transform(X=X.T)  # NOTE: D_modified is row-wise
-
-        # apply any dimensionality reduction method on the modified D:
-        D_transformed = self._final_DR_method.fit_transform(D_modified)  # NOTE: D_transformed is row-wise
+        D_transformed = pca.inverse_transform(X=X.T)  # NOTE: D_modified is row-wise
 
         return D_transformed
 
-    def _main_algorithm_Newtonian(self, X):
+    def _main_algorithm_Newtonian(self, X: np.ndarray) -> np.ndarray:
+        """
+        The main GDR algorithm for the Newtonian method. 
+
+        Args:
+            X (np.ndarray): The column-wise dataset, with columns as samples and rows as features
+
+        Returns:
+            X (np.ndarray): The column-wise transformed dataset, with columns as samples and rows as features.
+        """
         n_samples = X.shape[1]
         for j in range(1, n_samples+1):  # affected by the gravitation of particles
             if DEBUG_MODE and VERBOSITY >= 2: 
@@ -124,7 +143,16 @@ class GravitionalDimensionalityReduction():
             X[:, -j] = x_j
         return X
 
-    def _main_algorithm_Relativity(self, X):
+    def _main_algorithm_Relativity(self, X: np.ndarray) -> np.ndarray:
+        """
+        The main GDR algorithm for the Relativity method. 
+
+        Args:
+            X (np.ndarray): The column-wise dataset, with columns as samples and rows as features
+
+        Returns:
+            X (np.ndarray): The column-wise transformed dataset, with columns as samples and rows as features.
+        """
         n_samples = X.shape[1]
         for j in range(1, n_samples+1):  # affected by the gravitation of particles
             if DEBUG_MODE and VERBOSITY >= 2: 
@@ -173,7 +201,18 @@ class GravitionalDimensionalityReduction():
             X[:, -j] = x_j
         return X
 
-    def _move_in_spherical_coordinate_system(self, x, origin, delta):
+    def _move_in_spherical_coordinate_system(self, x: np.array, origin: np.array, delta: np.array) -> np.array:
+        """
+        Move a point in the spherical coordinate system.  
+
+        Args:
+            x (np.array): the vector in the spherical coordinate system, in the format of (r, theta, phi)
+            origin (np.array): the origin vector in the spherical coordinate system, in the format of (r, theta, phi)
+            delta (np.array): the movement (translation) vector in the spherical coordinate system, in the format of (delta_r, delta_theta, delta_phi)
+
+        Returns:
+            x (np.array): the moved (translated) vector in the spherical coordinate system, in the format of (r, theta, phi)
+        """
         assert (not np.all(x == origin))
         # shift based on origin:
         x = x - origin
@@ -188,9 +227,15 @@ class GravitionalDimensionalityReduction():
         x = x + origin
         return x
 
-    def _convert_Cartesian_to_spherical_coordinates(self, x):
+    def _convert_Cartesian_to_spherical_coordinates(self, x: np.array) -> np.array:
         """
-        Convert the point coordinates in Cartesian coordinate system to the point coordinates in the pherical coordinate system.
+        Convert the point coordinates in Cartesian coordinate system to the point coordinates in the spherical coordinate system.
+
+        Args:
+            x (np.array): the vector in the Cartesian coordinate system, in the format of (x, y, z)
+
+        Returns:
+            x (np.array): the vector in the spherical coordinate system, in the format of (r, theta, phi)
 
         Notes:
             https://en.wikipedia.org/wiki/Spherical_coordinate_system
@@ -217,9 +262,15 @@ class GravitionalDimensionalityReduction():
         assert (not np.isnan(np.asarray([r, theta, phi])).any())
         return np.asarray([r, theta, phi])
 
-    def _convert_spherical_to_Cartesian_coordinates(self, x):
+    def _convert_spherical_to_Cartesian_coordinates(self, x: np.array) -> np.array:
         """
         Convert the point coordinates in spherical coordinate system to the point coordinates in Cartesian coordinate system.
+
+        Args:
+            x (np.array): the vector in the spherical coordinate system, in the format of (r, theta, phi)
+
+        Returns:
+            x (np.array): the vector in the Cartesian coordinate system, in the format of (x, y, z)
 
         Notes:
             https://en.wikipedia.org/wiki/Spherical_coordinate_system
@@ -236,9 +287,17 @@ class GravitionalDimensionalityReduction():
         assert (not np.isnan(np.asarray([x, y, z])).any())
         return np.asarray([x, y, z])
 
-    def _caculate_r_and_theta(self, origin, x):
+    def _caculate_r_and_theta(self, origin: np.array, x: np.array) -> Tuple[float, float]:
         """
         Calculate r and theta in the spherical coordinate system with a specified origin.
+
+        Args:
+            origin (np.array): the origin vector in the spherical coordinate system, in the format of (r, theta, phi)
+            x (np.array): the vector in the spherical coordinate system, in the format of (r, theta, phi)
+
+        Returns:
+            r (float): the r component of vector in the spherical coordinate system
+            theta (float): the theta component of vector in the spherical coordinate system
 
         Notes:
             https://en.wikipedia.org/wiki/Spherical_coordinate_system
@@ -253,7 +312,26 @@ class GravitionalDimensionalityReduction():
             theta = np.pi - theta
         return (r, theta)
 
-    def _Schwarzschild_metric(self, r, theta, M, G=1, c=1, ignore_time_component=False):
+    def _Schwarzschild_metric(self, r: float, theta: float, M: Optional[float] = 1, G: Optional[float] = 1, 
+                            c: Optional[float] = 1, ignore_time_component: Optional[bool] = False) -> np.ndarray:
+        """
+        Calculate the Schwarzschild metric in the general relativity.
+
+        Args:
+            r (float): the r component of vector in the spherical coordinate system
+            theta (float): the theta component of vector in the spherical coordinate system
+            M (float): the mass of gravitational particle
+            G (float): the gravitational constant
+            c (float): the speed of light
+            ignore_time_component (bool): whether to ignore the time component of metric.
+                if true, metric is 3*3; otherwise, metric is 4*4
+
+        Returns:
+            metric (np.ndarray): the metric of general relativity as a 3*3 or 4*4 matrix
+
+        Notes:
+            https://en.wikipedia.org/wiki/Metric_tensor_(general_relativity)
+        """
         temp = 1 - ((2 * G * M) / (r * (c**2)))
         if not ignore_time_component:
             t_component = -1 * temp
@@ -266,7 +344,21 @@ class GravitionalDimensionalityReduction():
             metric = np.diag([r_component, theta_component, phi_component])
         return metric
 
-    def _Minkowski_metric(self, c=1, ignore_time_component=False):
+    def _Minkowski_metric(self, c: Optional[float] = 1, ignore_time_component: Optional[bool] = False) -> np.ndarray:
+        """
+        Calculate the Minkowski metric in the general relativity.
+
+        Args:
+            c (float): the speed of light
+            ignore_time_component (bool): whether to ignore the time component of metric.
+                if true, metric is 3*3; otherwise, metric is 4*4
+
+        Returns:
+            metric (np.ndarray): the metric of general relativity as a 3*3 or 4*4 matrix
+
+        Notes:
+            https://en.wikipedia.org/wiki/Metric_tensor_(general_relativity)
+        """
         if not ignore_time_component:
             t_component = -1 * (c**2)
         r_component = 1
@@ -278,12 +370,18 @@ class GravitionalDimensionalityReduction():
             metric = np.diag([r_component, theta_component, phi_component])
         return metric
 
-    def _sort_by_density(self, X, labels=None):
+    def _sort_by_density(self, X: np.ndarray, labels: Optional[np.array] = None) -> Tuple[np.ndarray, Optional[np.array], List[int]]:
         """
         Sort the samples based on density of Local Outlier Factor (LOF).
 
         Args:
             X (np.ndarray): The column-wise dataset, with columns as samples and rows as features
+            labels (np.array): The labels of samples, if the samples are labeled
+
+        Returns:
+            X (np.ndarray): The sorted column-wise dataset, with columns as samples and rows as features
+            labels (np.array): The sorted labels of samples, if the samples are labeled
+            sorted_indices (List[int]): the sorted indices
 
         Note:
             https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.LocalOutlierFactor.html#sklearn.neighbors.LocalOutlierFactor
@@ -302,7 +400,19 @@ class GravitionalDimensionalityReduction():
         else:
             return X, sorted_indices
 
-    def _unsort(self, sorted_indices, X, labels=None):
+    def _unsort(self, sorted_indices: List[int], X: np.ndarray, labels: Optional[np.array] = None) -> Tuple[np.ndarray, Optional[np.array]]:
+        """
+        Unsort the samples based on the sorted indices.
+
+        Args:
+            sorted_indices (List[int]): the sorted indices
+            X (np.ndarray): The sorted column-wise dataset, with columns as samples and rows as features
+            labels (np.array): The sorted labels of samples, if the samples are labeled
+
+        Returns:
+            X_unsorted (np.ndarray): The unsorted column-wise dataset, with columns as samples and rows as features
+            labels_unsorted (np.array): The unsorted labels of samples, if the samples are labeled
+        """
         X_unsorted = np.zeros_like(X)
         if labels is not None:
             labels_unsorted = np.zeros_like(labels)
@@ -315,7 +425,19 @@ class GravitionalDimensionalityReduction():
         else:
             return X_unsorted
 
-    def _convert_X_to_classes(self, X, labels):
+    def _convert_X_to_classes(self, X: np.ndarray, labels: np.array) -> Tuple[List[np.ndarray], List[np.array]]:
+        """
+        Convert (separate) X to classes.
+
+        Args:
+            X (np.ndarray): the column-wise dataset, with columns as samples and rows as features
+            labels (np.array): the labels of samples, if the samples are labeled
+
+        Returns:
+            X_classes (List[np.ndarray]): the list of data points inside each class
+                The matrix of every class is column-wise, with columns as samples and rows as features.
+            indices_classes (List[np.array]): the indices of points for every class
+        """
         X_classes, indices_classes = [], []
         n_classes = len(np.unique(labels))
         for label in range(n_classes):
@@ -328,7 +450,18 @@ class GravitionalDimensionalityReduction():
             indices_classes.append(indices)
         return X_classes, indices_classes
 
-    def _convert_classes_to_X(self, X_classes, indices_classes):
+    def _convert_classes_to_X(self, X_classes: List[np.ndarray], indices_classes: List[np.array]) -> np.ndarray:
+        """
+        Convert (accumulate) classes to dataset.
+
+        Args:
+            X_classes (List[np.ndarray]): the list of data points inside each class. 
+                The matrix of every class is column-wise, with columns as samples and rows as features.
+            indices_classes (List[np.array]): the indices of points for every class
+
+        Returns:
+            X (np.ndarray): the column-wise dataset, with columns as samples and rows as features 
+        """
         n_classes = len(X_classes)
         n_samples = 0
         n_dimensions = X_classes[0].shape[0]
@@ -340,7 +473,19 @@ class GravitionalDimensionalityReduction():
             X[:, indices_classes[label]] = X_classes[label]
         return X
 
-    def _visualize_embedding(self, X, X_classes, labels, sorted_indices, indices_classes):
+    def _visualize_embedding(self, X: np.ndarray, X_classes: List[np.ndarray], labels: Union[np.array, None], 
+                            sorted_indices: List[int], indices_classes: List[np.array]) -> None:
+        """
+        Visualize embedding in 3D plot.
+
+        Args:
+            X (np.ndarray): the column-wise dataset, with columns as samples and rows as features 
+            X_classes (List[np.ndarray]): the list of data points inside each class. 
+                The matrix of every class is column-wise, with columns as samples and rows as features.
+            labels (np.array): the labels of samples, if the samples are labeled
+            sorted_indices (List[int]): the sorted indices
+            indices_classes (List[np.array]): the indices of points for every class
+        """
         if not self._supervised_mode:
             if self._do_sort_by_density:
                 X_plot, labels_plot = self._unsort(sorted_indices, X, labels)
@@ -358,7 +503,8 @@ class GravitionalDimensionalityReduction():
         plt = utils.plot_3D(X=X_plot.T, labels=labels_plot, class_names=self._class_names)
         plt.show()
 
-    def test_Newtonian_movement(self):
+    def test_Newtonian_movement(self) -> None:
+        """Test Newtonian movement for two test points."""
         x_i = np.array([1, 1, 1])
         x_j = np.array([2, 3, 4])
         r_ij = np.linalg.norm(x_i - x_j)
@@ -373,7 +519,8 @@ class GravitionalDimensionalityReduction():
         plt = utils.plot_3D(X=np.asarray([x_i, x_j, x_k]), labels=labels, class_names=self._class_names)
         plt.show()
 
-    def test_Relativity_movement(self):
+    def test_Relativity_movement(self) -> None:
+        """Test Relativity movement for two test points."""
         x_i = np.array([1, 1, 1])
         x_j = np.array([2, 3, 4])
         r_ij = np.linalg.norm(x_i - x_j)
