@@ -9,11 +9,12 @@ N_SAMPLES = 1000
 
 # parameters of class:
 MAX_ITERATIONS = 5
-ALPHA = [0.33, 0.33, 0.33]
+ALPHA = [0.33, 0.33, 0.33]  #--> [0.33, 0.33, 0.33], [1, 0, 0], ...
 FINAL_DR_METHOD = None
 SUPERVISED_MODE = True
 DO_SORT_BY_DENSITY = True
 METHOD = 'Relativity'  #--> 'Newtonian', 'Relativity'
+METRIC = 'Schwarzschild'  #--> 'Schwarzschild', 'Minkowski'
 
 # experiment type:
 EXPERIMENT = 'main_algorithm' #--> 'main_algorithm', 'test_Newtonian_movement', 'test_Relativity_movement'
@@ -26,7 +27,8 @@ def main():
     
     # instantiate class:
     gdr = GravitionalDimensionalityReduction(max_itrations=MAX_ITERATIONS, alpha=ALPHA, final_DR_method=FINAL_DR_METHOD, 
-                                            supervised_mode=SUPERVISED_MODE, do_sort_by_density=DO_SORT_BY_DENSITY, method=METHOD)
+                                            supervised_mode=SUPERVISED_MODE, do_sort_by_density=DO_SORT_BY_DENSITY, 
+                                            method=METHOD, metric=METRIC)
     
     # experiment:
     if EXPERIMENT == 'main_algorithm':

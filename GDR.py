@@ -12,7 +12,7 @@ SHOW_VISUALIZATION = True
 
 class GravitionalDimensionalityReduction():
     def __init__(self, max_itrations=100, alpha=[0.33, 0.33, 0.33], final_DR_method=None, 
-                supervised_mode=False, do_sort_by_density=True, method='Newtonian') -> None:
+                supervised_mode=False, do_sort_by_density=True, method='Newtonian', metric="Schwarzschild") -> None:
         self._max_itrations = max_itrations
         self._alpha = alpha
         self._alpha = self._alpha / np.sum(self._alpha)  #--> make sure they sum to one
@@ -23,6 +23,7 @@ class GravitionalDimensionalityReduction():
         self._supervised_mode = supervised_mode
         self._do_sort_by_density = do_sort_by_density
         self._method = method
+        self._metric = metric
         self._n_samples = None
         self._dimensionality = None
         self._n_classes = None
@@ -145,24 +146,30 @@ class GravitionalDimensionalityReduction():
                 movement_amount_in_phi = movement_amount * self._alpha[2]
                 # calculate r and theta:
                 r, theta = self._caculate_r_and_theta(origin=x_i, x=x_j)
+                if DEBUG_MODE and VERBOSITY >= 3: print('r, theta, x_i, x_j: ', r, theta, x_i, x_j)
                 # tensor components:
-                g = self._Schwarzschild_metric(r=r, theta=theta, M=1, G=1, c=1, ignore_time_component=True)
+                if self._metric == "Schwarzschild":
+                    g = self._Schwarzschild_metric(r=r, theta=theta, M=1, G=1, c=1, ignore_time_component=True)
+                elif self._metric == "Minkowski":
+                    g = self._Minkowski_metric(c=1, ignore_time_component=True)
                 r_component = g[0, 0]
                 theta_component = g[1, 1]
                 phi_component = g[2, 2]
-                # movement in r, theta, and phi directions:
-                if DEBUG_MODE and VERBOSITY >= 3: print('r, theta, x_i, x_j: ', r, theta, x_i, x_j)
                 if DEBUG_MODE and VERBOSITY >= 3: print('r_component, theta_component, phi_component: ', r_component, theta_component, phi_component)
+                # movement in r, theta, and phi directions:
                 if r_component > 0:
                     delta_ij_value_r = -1 * (movement_amount_in_r / r_component)**0.5
                 else:
                     delta_ij_value_r = 0
                 delta_ij_value_theta = -1 * (movement_amount_in_theta / theta_component)**0.5
                 delta_ij_value_phi = -1 * (movement_amount_in_phi / phi_component)**0.5
-                # overall movement:
                 delta_ij = [delta_ij_value_r, delta_ij_value_theta, delta_ij_value_phi]
-                if DEBUG_MODE and VERBOSITY >= 3: print('delta_ij: ', delta_ij)
-                x_j = self._move_in_spherical_coordinate_system(x=x_j, origin=x_i, delta=delta_ij)
+                # overall movement:
+                if self._metric == "Schwarzschild":
+                    if DEBUG_MODE and VERBOSITY >= 3: print('delta_ij: ', delta_ij)
+                    x_j = self._move_in_spherical_coordinate_system(x=x_j, origin=x_i, delta=delta_ij)
+                elif self._metric == "Minkowski":
+                    x_j = x_j + delta_ij
             X[:, -j] = x_j
         return X
 
@@ -249,10 +256,22 @@ class GravitionalDimensionalityReduction():
     def _Schwarzschild_metric(self, r, theta, M, G=1, c=1, ignore_time_component=False):
         temp = 1 - ((2 * G * M) / (r * (c**2)))
         if not ignore_time_component:
-            t_component = temp
+            t_component = -1 * temp
         r_component = (1 / temp)
         theta_component = r**2
         phi_component = (r**2) * (math.sin(theta)**2)
+        if not ignore_time_component:
+            metric = np.diag([t_component, r_component, theta_component, phi_component])
+        else:
+            metric = np.diag([r_component, theta_component, phi_component])
+        return metric
+
+    def _Minkowski_metric(self, c=1, ignore_time_component=False):
+        if not ignore_time_component:
+            t_component = -1 * (c**2)
+        r_component = 1
+        theta_component = 1
+        phi_component = 1
         if not ignore_time_component:
             metric = np.diag([t_component, r_component, theta_component, phi_component])
         else:
