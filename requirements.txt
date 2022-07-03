@@ -1,0 +1,5 @@
+python==3.9.12
+numpy==1.21.5
+matplotlib==3.5.2
+scikit-learn==1.0.2
+umap-learn==0.5.3
