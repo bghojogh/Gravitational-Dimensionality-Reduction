@@ -1,11 +1,12 @@
 import numpy as np
 from sklearn.decomposition import PCA
-from typing import Optional, List, Union, Tuple
 import math
 import utils
 from sklearn.neighbors import LocalOutlierFactor as LOF
 import matplotlib.pyplot as plt
 import os
+from typing import Optional, List, Union, Tuple, TypeVar
+matplotlib_pyplot = TypeVar('matplotlib_pyplot')
 
 DEBUG_MODE = True
 VERBOSITY = 2
@@ -87,11 +88,14 @@ class GravitionalDimensionalityReduction():
             sorted_indices = None
 
         if SHOW_VISUALIZATION or SAVE_VISUALIZATION: 
-            plt = self._visualize_embedding(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
+            plt, X_plot, labels_plot = self._visualize_embedding(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
             if SHOW_VISUALIZATION: plt.show()
             if SAVE_VISUALIZATION: 
                 if not os.path.exists(PATH_SAVE): os.makedirs(PATH_SAVE)
                 plt.savefig(PATH_SAVE+'before_iterations.png')
+                if not os.path.exists(PATH_SAVE+'plot_files/'): os.makedirs(PATH_SAVE+'plot_files/')
+                utils.save_variable(variable=X_plot, name_of_variable='before_iterations_X_plot', path_to_save=PATH_SAVE+'plot_files/')
+                utils.save_variable(variable=labels_plot, name_of_variable='before_iterations_labels_plot', path_to_save=PATH_SAVE+'plot_files/')
 
         # iterations of algorithm:
         for itr in range(self._max_itrations):
@@ -108,11 +112,14 @@ class GravitionalDimensionalityReduction():
                     elif self._method == 'Relativity':
                         X_classes[label] = self._main_algorithm_Relativity(X=X_classes[label])
             if SHOW_VISUALIZATION or SAVE_VISUALIZATION: 
-                plt = self._visualize_embedding(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
+                plt, X_plot, labels_plot = self._visualize_embedding(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
                 if SHOW_VISUALIZATION: plt.show()
                 if SAVE_VISUALIZATION: 
                     if not os.path.exists(PATH_SAVE): os.makedirs(PATH_SAVE)
                     plt.savefig(PATH_SAVE+f'itr_{itr}.png')
+                    if not os.path.exists(PATH_SAVE+'plot_files/'): os.makedirs(PATH_SAVE+'plot_files/')
+                    utils.save_variable(variable=X_plot, name_of_variable=f'itr_{itr}_X_plot', path_to_save=PATH_SAVE+'plot_files/')
+                    utils.save_variable(variable=labels_plot, name_of_variable=f'itr_{itr}_labels_plot', path_to_save=PATH_SAVE+'plot_files/')
 
         # in supervised case, make X from X_classes:
         if self._supervised_mode:
@@ -484,7 +491,7 @@ class GravitionalDimensionalityReduction():
         return X
 
     def _visualize_embedding(self, X: np.ndarray, X_classes: List[np.ndarray], labels: Union[np.array, None], 
-                            sorted_indices: List[int], indices_classes: List[np.array]) -> plt:
+                            sorted_indices: List[int], indices_classes: List[np.array]) -> Tuple[matplotlib_pyplot, np.ndarray, np.array]:
         """
         Visualize embedding in 3D plot.
 
@@ -498,6 +505,8 @@ class GravitionalDimensionalityReduction():
 
         Returns:
             plt (matplotlib.pyplot): the plot object. Use plt.show or plt.savefig for showing or saving it, respectively.
+            X_plot (np.ndarray): the data of plot.
+            labels_plot (np.array): the labels of plot (for color of plot).
         """
         if not self._supervised_mode:
             if self._do_sort_by_density:
@@ -514,7 +523,7 @@ class GravitionalDimensionalityReduction():
                 X_plot = self._convert_classes_to_X(X_classes, indices_classes)
             labels_plot = labels.copy()
         plt = utils.plot_3D(X=X_plot.T, labels=labels_plot, class_names=self._class_names)
-        return plt
+        return plt, X_plot, labels_plot
 
     def test_Newtonian_movement(self) -> None:
         """Test Newtonian movement for two test points."""

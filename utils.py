@@ -1,10 +1,56 @@
+import os
+import pickle
 import matplotlib.pyplot as plt
 import numpy as np
 import umap
 from sklearn.manifold import TSNE
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, TypeVar
+matplotlib_pyplot = TypeVar('matplotlib_pyplot')
 
-def plot_3D(X: np.ndarray, labels: np.array, class_names: List[str]) -> plt:
+def save_variable(variable, name_of_variable, path_to_save='./'):
+    """
+    Save variable to computer.
+
+    Notes: 
+        https://stackoverflow.com/questions/6568007/how-do-i-save-and-restore-multiple-variables-in-python
+    """
+    if not os.path.exists(path_to_save):  
+        os.makedirs(path_to_save)
+    file_address = path_to_save + name_of_variable + '.pckl'
+    f = open(file_address, 'wb')
+    pickle.dump(variable, f)
+    f.close()
+
+def load_variable(name_of_variable, path='./'):
+    """
+    Load variable from computer.
+
+    Notes: 
+        https://stackoverflow.com/questions/6568007/how-do-i-save-and-restore-multiple-variables-in-python
+    """
+    file_address = path + name_of_variable + '.pckl'
+    f = open(file_address, 'rb')
+    variable = pickle.load(f)
+    f.close()
+    return variable
+
+def save_np_array_to_txt(variable, name_of_variable, path_to_save='./'):
+    """
+    Save np.ndarray variable to a text file in computer.
+
+    Notes: 
+        https://stackoverflow.com/questions/22821460/numpy-save-2d-array-to-text-file/22822701
+    """
+    if type(variable) is list:
+        variable = np.asarray(variable)
+    if not os.path.exists(path_to_save):  
+        os.makedirs(path_to_save)
+    file_address = path_to_save + name_of_variable + '.txt'
+    np.set_printoptions(threshold=np.inf, linewidth=np.inf)  # turn off summarization, line-wrapping
+    with open(file_address, 'w') as f:
+        f.write(np.array2string(variable, separator=', '))
+
+def plot_3D(X: np.ndarray, labels: np.array, class_names: List[str]) -> matplotlib_pyplot:
     """
     Visualize data in 3D plot.
 
@@ -25,7 +71,7 @@ def plot_3D(X: np.ndarray, labels: np.array, class_names: List[str]) -> plt:
     return plt
 
 def plot_embedding_of_points(embedding: np.ndarray, labels: Optional[np.array], class_names: Optional[List[str]], 
-                            n_samples_plot: Optional[int] = None, method: Optional[str] = 'tsne') -> plt:
+                            n_samples_plot: Optional[int] = None, method: Optional[str] = 'tsne') -> matplotlib_pyplot:
     """
     Plot the embedding for visualization.
 
