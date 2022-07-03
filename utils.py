@@ -1,11 +1,10 @@
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import umap
 from sklearn.manifold import TSNE
 from typing import Optional, List, Tuple
 
-def plot_3D(X: np.ndarray, labels: np.array, class_names: List[str]) -> matplotlib:
+def plot_3D(X: np.ndarray, labels: np.array, class_names: List[str]) -> plt:
     """
     Visualize data in 3D plot.
 
@@ -15,7 +14,7 @@ def plot_3D(X: np.ndarray, labels: np.array, class_names: List[str]) -> matplotl
         class_names (List[str]): the names of classes, with the order of labels.
 
     Returns:
-        plt (matplotlib): the plot object. Use plt.show or plt.savefig for showing or saving it, respectively. 
+        plt (matplotlib.pyplot): the plot object. Use plt.show or plt.savefig for showing or saving it, respectively.
     """
     figure_size = (12, 12)  #--> example: (14, 10)
     dot_sizes = 50  #--> example: 10
@@ -26,7 +25,7 @@ def plot_3D(X: np.ndarray, labels: np.array, class_names: List[str]) -> matplotl
     return plt
 
 def plot_embedding_of_points(embedding: np.ndarray, labels: Optional[np.array], class_names: Optional[List[str]], 
-                            n_samples_plot: Optional[int] = None, method: Optional[str] = 'tsne') -> matplotlib:
+                            n_samples_plot: Optional[int] = None, method: Optional[str] = 'tsne') -> plt:
     """
     Plot the embedding for visualization.
 
@@ -39,7 +38,7 @@ def plot_embedding_of_points(embedding: np.ndarray, labels: Optional[np.array], 
             Default is 'tsne'. Options are 'tsne' and 'umap'.
 
     Returns:
-        plt (matplotlib): the plot object. Use plt.show or plt.savefig for showing or saving it, respectively. 
+        plt (matplotlib.pyplot): the plot object. Use plt.show or plt.savefig for showing or saving it, respectively.
     """
     figure_size = (7, 5)  #--> example: (14, 10)
     dot_sizes = 50  #--> example: 10

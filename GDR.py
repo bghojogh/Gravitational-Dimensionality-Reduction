@@ -5,10 +5,13 @@ import math
 import utils
 from sklearn.neighbors import LocalOutlierFactor as LOF
 import matplotlib.pyplot as plt
+import os
 
 DEBUG_MODE = True
 VERBOSITY = 2
-SHOW_VISUALIZATION = True
+SHOW_VISUALIZATION = False
+SAVE_VISUALIZATION = True
+PATH_SAVE = './saved_files/'
 
 class GravitionalDimensionalityReduction():
     def __init__(self, max_itrations: Optional[int] = 100, alpha: Optional[List[float]] = [0.33, 0.33, 0.33], 
@@ -83,8 +86,12 @@ class GravitionalDimensionalityReduction():
         else:
             sorted_indices = None
 
-        if DEBUG_MODE and SHOW_VISUALIZATION: 
-            self._visualize_embedding(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
+        if SHOW_VISUALIZATION or SAVE_VISUALIZATION: 
+            plt = self._visualize_embedding(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
+            if SHOW_VISUALIZATION: plt.show()
+            if SAVE_VISUALIZATION: 
+                if not os.path.exists(PATH_SAVE): os.makedirs(PATH_SAVE)
+                plt.savefig(PATH_SAVE+'before_iterations.png')
 
         # iterations of algorithm:
         for itr in range(self._max_itrations):
@@ -100,9 +107,12 @@ class GravitionalDimensionalityReduction():
                         X_classes[label] = self._main_algorithm_Newtonian(X=X_classes[label])
                     elif self._method == 'Relativity':
                         X_classes[label] = self._main_algorithm_Relativity(X=X_classes[label])
-
-        if DEBUG_MODE and SHOW_VISUALIZATION:
-            self._visualize_embedding(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
+            if SHOW_VISUALIZATION or SAVE_VISUALIZATION: 
+                plt = self._visualize_embedding(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
+                if SHOW_VISUALIZATION: plt.show()
+                if SAVE_VISUALIZATION: 
+                    if not os.path.exists(PATH_SAVE): os.makedirs(PATH_SAVE)
+                    plt.savefig(PATH_SAVE+f'itr_{itr}.png')
 
         # in supervised case, make X from X_classes:
         if self._supervised_mode:
@@ -474,7 +484,7 @@ class GravitionalDimensionalityReduction():
         return X
 
     def _visualize_embedding(self, X: np.ndarray, X_classes: List[np.ndarray], labels: Union[np.array, None], 
-                            sorted_indices: List[int], indices_classes: List[np.array]) -> None:
+                            sorted_indices: List[int], indices_classes: List[np.array]) -> plt:
         """
         Visualize embedding in 3D plot.
 
@@ -485,6 +495,9 @@ class GravitionalDimensionalityReduction():
             labels (np.array): the labels of samples, if the samples are labeled
             sorted_indices (List[int]): the sorted indices
             indices_classes (List[np.array]): the indices of points for every class
+
+        Returns:
+            plt (matplotlib.pyplot): the plot object. Use plt.show or plt.savefig for showing or saving it, respectively.
         """
         if not self._supervised_mode:
             if self._do_sort_by_density:
@@ -501,7 +514,7 @@ class GravitionalDimensionalityReduction():
                 X_plot = self._convert_classes_to_X(X_classes, indices_classes)
             labels_plot = labels.copy()
         plt = utils.plot_3D(X=X_plot.T, labels=labels_plot, class_names=self._class_names)
-        plt.show()
+        return plt
 
     def test_Newtonian_movement(self) -> None:
         """Test Newtonian movement for two test points."""
