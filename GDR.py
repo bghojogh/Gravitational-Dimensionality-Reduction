@@ -138,13 +138,11 @@ class GravitionalDimensionalityReduction():
                     plt2.savefig(PATH_SAVE+f'highDim_itr_{itr}.png')
                     utils.save_variable(variable=D_transformed, name_of_variable=f'itr_{itr}_D', path_to_save=PATH_SAVE+'plot_files/')
 
-
-        # in supervised case, make X from X_classes:
-        if self._supervised_mode:
-            X = self._convert_classes_to_X(X_classes, indices_classes)
+        # Unsort and convert X_classes to X, if necessary:
+        X_final, labels_final = self._unsort_and_convertToX_if_necessary(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
 
         # reconstruct from PCA subspace (space manifold in physics):
-        D_transformed = pca.inverse_transform(X=X.T)  # NOTE: D_transformed is row-wise
+        D_transformed = pca.inverse_transform(X=X_final.T)  # NOTE: D_transformed is row-wise
 
         return D_transformed
 
