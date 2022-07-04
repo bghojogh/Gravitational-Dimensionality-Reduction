@@ -13,6 +13,7 @@ SUPERVISED_MODE = True
 DO_SORT_BY_DENSITY = True
 METHOD = 'Relativity'  #--> 'Newtonian', 'Relativity'
 METRIC = 'Schwarzschild'  #--> 'Schwarzschild', 'Minkowski'
+USE_PCA_FOR_NEWTONIAN = True
 
 # experiment type:
 EXPERIMENT = 'main_algorithm' #--> 'main_algorithm', 'test_Newtonian_movement', 'test_Relativity_movement'
@@ -25,7 +26,8 @@ def main():
     
     # instantiate class:
     gdr = GravitionalDimensionalityReduction(max_itrations=MAX_ITERATIONS, alpha=ALPHA, supervised_mode=SUPERVISED_MODE, 
-                                            do_sort_by_density=DO_SORT_BY_DENSITY, method=METHOD, metric=METRIC)
+                                            do_sort_by_density=DO_SORT_BY_DENSITY, method=METHOD, metric=METRIC,
+                                            use_PCA_for_Newtonian=USE_PCA_FOR_NEWTONIAN)
     
     # experiment:
     if EXPERIMENT == 'main_algorithm':

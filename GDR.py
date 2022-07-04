@@ -17,7 +17,8 @@ PATH_SAVE = './saved_files/'
 class GravitionalDimensionalityReduction():
     def __init__(self, max_itrations: Optional[int] = 100, alpha: Optional[List[float]] = [0.33, 0.33, 0.33], 
                 supervised_mode: Optional[bool] = False, do_sort_by_density: Optional[bool] = True, 
-                method: Optional[str] = 'Newtonian', metric: Optional[str] = "Schwarzschild") -> None:
+                method: Optional[str] = 'Relativity', metric: Optional[str] = "Schwarzschild", 
+                use_PCA_for_Newtonian: Optional[bool] = False) -> None:
         """Class for Gravitational Dimensionality Reduction (GDR)
         
         Args:
@@ -33,6 +34,9 @@ class GravitionalDimensionalityReduction():
             metric (str): the metric used in the Relativity method. 
                 Options are Schwarzschild (for general relativity) and Minkowski (for special relativity). Schwarzschild works much better.
                 This is only used for the Relativity method (and not for the Newtonian method).
+            use_PCA_for_Newtonian (bool): whether to use PCA for the Newtonian method. 
+                If False, then the Newtonian movement in done in the input space, rather than the 3D PCA space.
+                This variable is only important for the Newtonian method and not the Relativity method. PCA is always applied for the Relativity method.
         """
         self._max_itrations = max_itrations
         self._alpha = alpha
@@ -41,6 +45,7 @@ class GravitionalDimensionalityReduction():
         self._do_sort_by_density = do_sort_by_density
         self._method = method
         self._metric = metric
+        self._use_PCA_for_Newtonian = use_PCA_for_Newtonian
         self._n_samples = None
         self._dimensionality = None
         self._n_classes = None
@@ -70,8 +75,11 @@ class GravitionalDimensionalityReduction():
         self._class_names = [str(i) for i in range(self._n_classes)]
 
         # apply PCA to go to PCA subspace (space manifold in physics):
-        pca = PCA(n_components=3)
-        X = (pca.fit_transform(D.T)).T
+        if (self._method == 'Newtonian') and (not self._use_PCA_for_Newtonian):
+            X = D.copy()
+        else:
+            pca = PCA(n_components=3)
+            X = (pca.fit_transform(D.T)).T
         
         # in supervised case, make X_classes from X:
         if self._supervised_mode:
@@ -100,7 +108,10 @@ class GravitionalDimensionalityReduction():
                 if not os.path.exists(PATH_SAVE+'plot_files/'): os.makedirs(PATH_SAVE+'plot_files/')
                 utils.save_variable(variable=X_final, name_of_variable='before_iterations_X', path_to_save=PATH_SAVE+'plot_files/')
                 utils.save_variable(variable=labels_final, name_of_variable='before_iterations_labels', path_to_save=PATH_SAVE+'plot_files/')
-            D_transformed = pca.inverse_transform(X=X_final.T)
+            if (self._method == 'Newtonian') and (not self._use_PCA_for_Newtonian):
+                D_transformed = X_final.T
+            else:
+                D_transformed = pca.inverse_transform(X=X_final.T)
             plt2 = utils.plot_embedding_of_points(embedding=D_transformed, labels=labels_final, class_names=self._class_names, n_samples_plot=2000, method='tsne')
             if SHOW_VISUALIZATION: plt2.show()
             if SAVE_VISUALIZATION: 
@@ -131,7 +142,10 @@ class GravitionalDimensionalityReduction():
                     if not os.path.exists(PATH_SAVE+'plot_files/'): os.makedirs(PATH_SAVE+'plot_files/')
                     utils.save_variable(variable=X_final, name_of_variable=f'itr_{itr}_X', path_to_save=PATH_SAVE+'plot_files/')
                     utils.save_variable(variable=labels_final, name_of_variable=f'itr_{itr}_labels', path_to_save=PATH_SAVE+'plot_files/')
-                D_transformed = pca.inverse_transform(X=X_final.T)
+                if (self._method == 'Newtonian') and (not self._use_PCA_for_Newtonian):
+                    D_transformed = X_final.T
+                else:
+                    D_transformed = pca.inverse_transform(X=X_final.T)
                 plt2 = utils.plot_embedding_of_points(embedding=D_transformed, labels=labels_final, class_names=self._class_names, n_samples_plot=2000, method='tsne')
                 if SHOW_VISUALIZATION: plt2.show()
                 if SAVE_VISUALIZATION: 
@@ -142,7 +156,11 @@ class GravitionalDimensionalityReduction():
         X_final, labels_final = self._unsort_and_convertToX_if_necessary(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)
 
         # reconstruct from PCA subspace (space manifold in physics):
-        D_transformed = pca.inverse_transform(X=X_final.T)  # NOTE: D_transformed is row-wise
+        if (self._method == 'Newtonian') and (not self._use_PCA_for_Newtonian):
+            D_transformed = X_final.T
+        else:
+            D_transformed = pca.inverse_transform(X=X_final.T)  # NOTE: D_transformed is row-wise
+        
 
         return D_transformed
 
