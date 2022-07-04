@@ -25,6 +25,7 @@ class GravitionalDimensionalityReduction():
             max_itrations (int): the number of iterations for GDR algorithm
             alpha (List[float]): the weights of movements in directions of every component in the space manifold.
                 The summation of elements of this list should be one.
+                This variable is only used for the Relativity method and not the Newtonian method.
             supervised_mode (bool): if true, it is supervised; otherwise, it is unsupervised. 
                 The supervised version of GDR works much better. The unsupervised version is work in progress. 
             do_sort_by_density (bool): if true, the points are sorted, by LOF density, for order of importance in gravity.
@@ -117,6 +118,8 @@ class GravitionalDimensionalityReduction():
             if SAVE_VISUALIZATION: 
                 plt2.savefig(PATH_SAVE+f'highDim_before_iterations.png')
                 utils.save_variable(variable=D_transformed, name_of_variable=f'before_iterations_D', path_to_save=PATH_SAVE+'plot_files/')
+            plt1.close()
+            plt2.close()
 
         # iterations of algorithm:
         for itr in range(self._max_itrations):
@@ -151,6 +154,8 @@ class GravitionalDimensionalityReduction():
                 if SAVE_VISUALIZATION: 
                     plt2.savefig(PATH_SAVE+f'highDim_itr_{itr}.png')
                     utils.save_variable(variable=D_transformed, name_of_variable=f'itr_{itr}_D', path_to_save=PATH_SAVE+'plot_files/')
+                plt1.close()
+                plt2.close()
 
         # Unsort and convert X_classes to X, if necessary:
         X_final, labels_final = self._unsort_and_convertToX_if_necessary(X=X, X_classes=X_classes, labels=labels, sorted_indices=sorted_indices, indices_classes=indices_classes)

@@ -4,16 +4,16 @@ from sklearn.datasets import load_digits
 import matplotlib.pyplot as plt
 
 # parameters of dataset:
-N_SAMPLES = 1000
+N_SAMPLES = None  #--> None, 1000, ...
 
 # parameters of class:
-MAX_ITERATIONS = 5
+MAX_ITERATIONS = 10
 ALPHA = [0.33, 0.33, 0.33]  #--> [0.33, 0.33, 0.33], [1, 0, 0], ...
 SUPERVISED_MODE = True
 DO_SORT_BY_DENSITY = True
 METHOD = 'Relativity'  #--> 'Newtonian', 'Relativity'
 METRIC = 'Schwarzschild'  #--> 'Schwarzschild', 'Minkowski'
-USE_PCA_FOR_NEWTONIAN = True
+USE_PCA_FOR_NEWTONIAN = False
 
 # experiment type:
 EXPERIMENT = 'main_algorithm' #--> 'main_algorithm', 'test_Newtonian_movement', 'test_Relativity_movement'
@@ -21,8 +21,9 @@ EXPERIMENT = 'main_algorithm' #--> 'main_algorithm', 'test_Newtonian_movement', 
 def main():
     # load dataset:
     (D, labels) = load_digits(return_X_y=True)
-    D = D[:N_SAMPLES, :]
-    labels = labels[:N_SAMPLES]
+    if N_SAMPLES is not None:
+        D = D[:N_SAMPLES, :]
+        labels = labels[:N_SAMPLES]
     
     # instantiate class:
     gdr = GravitionalDimensionalityReduction(max_itrations=MAX_ITERATIONS, alpha=ALPHA, supervised_mode=SUPERVISED_MODE, 
